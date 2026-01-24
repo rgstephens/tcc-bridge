@@ -68,21 +68,39 @@ function formatTemp(temp: number): string {
       <div class="has-text-centered mb-4">
         <div class="temperature-display">
           {{ formatTemp(thermostat.current_temp) }}
-          <span class="temperature-unit">°C</span>
+          <span class="temperature-unit">°F</span>
         </div>
-        <p class="has-text-grey">
+        <p class="has-text-grey" v-if="thermostat.humidity <= 100">
           Humidity: {{ thermostat.humidity }}%
         </p>
       </div>
 
+      <!-- System Info -->
+      <div class="mb-4">
+        <div class="field">
+          <label class="label">System Mode</label>
+          <p class="has-text-weight-semibold is-capitalized">{{ thermostat.system_mode }}</p>
+        </div>
+        <div class="columns is-mobile">
+          <div class="column">
+            <label class="label is-small">Heat Setpoint</label>
+            <p class="has-text-weight-semibold">{{ formatTemp(thermostat.heat_setpoint) }}°F</p>
+          </div>
+          <div class="column">
+            <label class="label is-small">Cool Setpoint</label>
+            <p class="has-text-weight-semibold">{{ formatTemp(thermostat.cool_setpoint) }}°F</p>
+          </div>
+        </div>
+      </div>
+
       <!-- Mode Selection -->
       <div class="field">
-        <label class="label">Mode</label>
+        <label class="label">Change Mode</label>
         <div class="buttons mode-buttons">
           <button
             v-for="mode in modes"
             :key="mode"
-            class="button"
+            class="button is-small"
             :class="{
               'is-primary': thermostat.system_mode === mode,
               'is-loading': updating,
@@ -95,20 +113,20 @@ function formatTemp(temp: number): string {
         </div>
       </div>
 
-      <!-- Heat Setpoint -->
+      <!-- Heat Setpoint Adjustment -->
       <div v-if="thermostat.system_mode === 'heat' || thermostat.system_mode === 'auto'" class="field">
-        <label class="label">Heat Setpoint</label>
+        <label class="label">Adjust Heat Setpoint</label>
         <div class="setpoint-control">
           <button
-            class="button"
+            class="button is-small"
             :disabled="updating || heatSetpoint <= 10"
             @click="adjustHeatSetpoint(-0.5)"
           >
             -
           </button>
-          <span class="setpoint-value">{{ formatTemp(heatSetpoint) }}°C</span>
+          <span class="setpoint-value">{{ formatTemp(heatSetpoint) }}°F</span>
           <button
-            class="button"
+            class="button is-small"
             :disabled="updating || heatSetpoint >= 32"
             @click="adjustHeatSetpoint(0.5)"
           >
@@ -117,20 +135,20 @@ function formatTemp(temp: number): string {
         </div>
       </div>
 
-      <!-- Cool Setpoint -->
+      <!-- Cool Setpoint Adjustment -->
       <div v-if="thermostat.system_mode === 'cool' || thermostat.system_mode === 'auto'" class="field">
-        <label class="label">Cool Setpoint</label>
+        <label class="label">Adjust Cool Setpoint</label>
         <div class="setpoint-control">
           <button
-            class="button"
+            class="button is-small"
             :disabled="updating || coolSetpoint <= 10"
             @click="adjustCoolSetpoint(-0.5)"
           >
             -
           </button>
-          <span class="setpoint-value">{{ formatTemp(coolSetpoint) }}°C</span>
+          <span class="setpoint-value">{{ formatTemp(coolSetpoint) }}°F</span>
           <button
-            class="button"
+            class="button is-small"
             :disabled="updating || coolSetpoint >= 35"
             @click="adjustCoolSetpoint(0.5)"
           >

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -194,15 +195,30 @@ func (s *Service) pollTCC(ctx context.Context) {
 	if !s.tccClient.IsAuthenticated() {
 		// Try to authenticate
 		if err := s.tccClient.Login(ctx); err != nil {
-			log.Debug("TCC login failed: %v", err)
+			// Check for rate limiting
+			if strings.Contains(err.Error(), "rate_limited") {
+				log.Warn("TCC rate limited: %v", err)
+				s.db.LogEvent(storage.EventSourceTCC, storage.EventTypeError,
+					"Rate limited by TCC API", map[string]interface{}{"error": err.Error()})
+			} else {
+				log.Debug("TCC login failed: %v", err)
+			}
 			return
 		}
 	}
 
 	devices, err := s.tccClient.GetDevices(ctx)
 	if err != nil {
-		log.Error("Failed to poll TCC: %v", err)
-		s.db.LogEvent(storage.EventSourceTCC, storage.EventTypeError, fmt.Sprintf("Poll failed: %v", err), nil)
+		// Check for rate limiting
+		if strings.Contains(err.Error(), "rate_limited") || strings.Contains(err.Error(), "rate limit") {
+			log.Warn("TCC rate limited: %v", err)
+			s.db.LogEvent(storage.EventSourceTCC, storage.EventTypeError,
+				"Rate limited by TCC API", map[string]interface{}{"error": err.Error()})
+		} else {
+			log.Error("Failed to poll TCC: %v", err)
+			s.db.LogEvent(storage.EventSourceTCC, storage.EventTypeError,
+				fmt.Sprintf("Poll failed: %v", err), nil)
+		}
 		return
 	}
 

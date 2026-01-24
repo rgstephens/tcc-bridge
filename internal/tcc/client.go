@@ -149,8 +149,8 @@ func (c *Client) Login(ctx context.Context) error {
 		// Check for error pages
 		if strings.Contains(finalURL, "/Error/") {
 			if strings.Contains(finalURL, "TooManyAttempts") {
-				log.Debug("TCC login rate limited: too many attempts")
-				return fmt.Errorf("login rate limited: too many attempts, please wait a few minutes")
+				log.Warn("TCC login rate limited: too many attempts")
+				return fmt.Errorf("rate_limited: too many login attempts, please wait a few minutes")
 			}
 			log.Debug("TCC login error page: %s", finalURL)
 			return fmt.Errorf("login failed: redirected to error page")
@@ -289,6 +289,10 @@ func (c *Client) parseDeviceResponse(body []byte) []ThermostatState {
 	if err := json.Unmarshal(body, &zones); err == nil && len(zones) > 0 {
 		log.Debug("Parsed as ZoneData array: %d zones", len(zones))
 		for _, z := range zones {
+			humidity := int(z.IndoorHumidity)
+			if humidity > 100 {
+				humidity = 0 // Hide invalid humidity
+			}
 			devices = append(devices, ThermostatState{
 				DeviceID:     z.DeviceID,
 				Name:         z.Name,
@@ -296,7 +300,7 @@ func (c *Client) parseDeviceResponse(body []byte) []ThermostatState {
 				HeatSetpoint: z.HeatSetpoint,
 				CoolSetpoint: z.CoolSetpoint,
 				SystemMode:   SystemModeFromTCC(z.SystemSwitchPos),
-				Humidity:     int(z.IndoorHumidity),
+				Humidity:     humidity,
 				IsHeating:    IsEquipmentHeating(z.EquipmentStatus),
 				IsCooling:    IsEquipmentCooling(z.EquipmentStatus),
 				UpdatedAt:    time.Now(),
@@ -312,6 +316,10 @@ func (c *Client) parseDeviceResponse(body []byte) []ThermostatState {
 		for _, loc := range locResp {
 			log.Debug("Location %s has %d zones", loc.Name, len(loc.Devices))
 			for _, z := range loc.Devices {
+				humidity := int(z.IndoorHumidity)
+				if humidity > 100 {
+					humidity = 0 // Hide invalid humidity
+				}
 				devices = append(devices, ThermostatState{
 					DeviceID:     z.DeviceID,
 					Name:         z.Name,
@@ -319,7 +327,7 @@ func (c *Client) parseDeviceResponse(body []byte) []ThermostatState {
 					HeatSetpoint: z.HeatSetpoint,
 					CoolSetpoint: z.CoolSetpoint,
 					SystemMode:   SystemModeFromTCC(z.SystemSwitchPos),
-					Humidity:     int(z.IndoorHumidity),
+					Humidity:     humidity,
 					IsHeating:    IsEquipmentHeating(z.EquipmentStatus),
 					IsCooling:    IsEquipmentCooling(z.EquipmentStatus),
 					UpdatedAt:    time.Now(),
@@ -396,13 +404,21 @@ func (c *Client) GetDeviceData(ctx context.Context, deviceID int) (*ThermostatSt
 	}
 
 	ui := dataResp.LatestData.UIData
+
+	// Cap humidity at 100% (TCC sometimes returns invalid values)
+	humidity := int(ui.IndoorHumidity)
+	if humidity > 100 {
+		log.Debug("Invalid humidity value %d from TCC, capping at 100%%", humidity)
+		humidity = 0 // Hide invalid humidity
+	}
+
 	state := &ThermostatState{
 		DeviceID:     deviceID,
 		CurrentTemp:  ui.DispTemperature,
 		HeatSetpoint: ui.HeatSetpoint,
 		CoolSetpoint: ui.CoolSetpoint,
 		SystemMode:   SystemModeFromTCC(ui.SystemSwitchPosition),
-		Humidity:     int(ui.IndoorHumidity),
+		Humidity:     humidity,
 		IsHeating:    IsEquipmentHeating(ui.EquipmentOutputStatus),
 		IsCooling:    IsEquipmentCooling(ui.EquipmentOutputStatus),
 		Units:        ui.DisplayedUnits,
