@@ -20,7 +20,7 @@ type ZoneData struct {
 	CurrentTemp      float64 `json:"DispTemperature"`
 	HeatSetpoint     float64 `json:"HeatSetpoint"`
 	CoolSetpoint     float64 `json:"CoolSetpoint"`
-	IndoorHumidity   int     `json:"IndoorHumidity"`
+	IndoorHumidity   float64 `json:"IndoorHumidity"`
 	SystemSwitchPos  int     `json:"SystemSwitchPosition"`
 	EquipmentStatus  int     `json:"EquipmentOutputStatus"`
 	IsFanRunning     bool    `json:"IsFanRunning"`
@@ -67,8 +67,8 @@ type UIData struct {
 	DispTemperature        float64 `json:"DispTemperature"`
 	HeatSetpoint           float64 `json:"HeatSetpoint"`
 	CoolSetpoint           float64 `json:"CoolSetpoint"`
-	IndoorHumidity         int     `json:"IndoorHumidity"`
-	OutdoorHumidity        int     `json:"OutdoorHumidity"`
+	IndoorHumidity         float64 `json:"IndoorHumidity"`
+	OutdoorHumidity        float64 `json:"OutdoorHumidity"`
 	OutdoorTemperature     float64 `json:"OutdoorTemperature"`
 	SystemSwitchPosition   int     `json:"SystemSwitchPosition"`
 	EquipmentOutputStatus  int     `json:"EquipmentOutputStatus"`

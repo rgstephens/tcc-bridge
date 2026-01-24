@@ -259,7 +259,10 @@ func (c *Client) GetDevices(ctx context.Context) ([]ThermostatState, error) {
 	if len(devices) == 0 && lastDeviceID != 0 {
 		log.Debug("Trying to fetch known device ID %d", lastDeviceID)
 		if device, err := c.GetDeviceData(ctx, lastDeviceID); err == nil && device != nil {
+			log.Debug("Successfully fetched device %d", lastDeviceID)
 			devices = append(devices, *device)
+		} else if err != nil {
+			log.Debug("Failed to fetch device %d: %v", lastDeviceID, err)
 		}
 	}
 
@@ -293,7 +296,7 @@ func (c *Client) parseDeviceResponse(body []byte) []ThermostatState {
 				HeatSetpoint: z.HeatSetpoint,
 				CoolSetpoint: z.CoolSetpoint,
 				SystemMode:   SystemModeFromTCC(z.SystemSwitchPos),
-				Humidity:     z.IndoorHumidity,
+				Humidity:     int(z.IndoorHumidity),
 				IsHeating:    IsEquipmentHeating(z.EquipmentStatus),
 				IsCooling:    IsEquipmentCooling(z.EquipmentStatus),
 				UpdatedAt:    time.Now(),
@@ -316,7 +319,7 @@ func (c *Client) parseDeviceResponse(body []byte) []ThermostatState {
 					HeatSetpoint: z.HeatSetpoint,
 					CoolSetpoint: z.CoolSetpoint,
 					SystemMode:   SystemModeFromTCC(z.SystemSwitchPos),
-					Humidity:     z.IndoorHumidity,
+					Humidity:     int(z.IndoorHumidity),
 					IsHeating:    IsEquipmentHeating(z.EquipmentStatus),
 					IsCooling:    IsEquipmentCooling(z.EquipmentStatus),
 					UpdatedAt:    time.Now(),
@@ -343,20 +346,27 @@ func (c *Client) GetDeviceData(ctx context.Context, deviceID int) (*ThermostatSt
 	}
 
 	path := fmt.Sprintf(DeviceDataPath, deviceID)
+	log.Debug("Fetching device data for device %d from %s", deviceID, path)
+
 	req, err := http.NewRequestWithContext(ctx, "GET", c.baseURL+path, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create device data request: %w", err)
 	}
 	c.setHeaders(req)
 	req.Header.Set("Accept", "application/json")
+	req.Header.Set("X-Requested-With", "XMLHttpRequest")
 
 	resp, err := c.session.GetClient().Do(req)
 	if err != nil {
+		log.Debug("Failed to fetch device data: %v", err)
 		return nil, fmt.Errorf("failed to get device data: %w", err)
 	}
 	defer resp.Body.Close()
 
+	finalURL := resp.Request.URL.String()
+
 	if resp.StatusCode == http.StatusUnauthorized {
+		log.Debug("Device data request unauthorized")
 		c.session.MarkUnauthenticated()
 		return nil, fmt.Errorf("session expired")
 	}
@@ -366,6 +376,14 @@ func (c *Client) GetDeviceData(ctx context.Context, deviceID int) (*ThermostatSt
 		return nil, fmt.Errorf("failed to read device data: %w", err)
 	}
 
+	log.Debug("Device data response (status %d, url %s): %s", resp.StatusCode, finalURL, truncateForLog(string(body), 500))
+
+	// Check for error redirects
+	if strings.Contains(finalURL, "Error") || strings.Contains(finalURL, "Login") {
+		log.Debug("Device data request redirected to error/login page")
+		return nil, fmt.Errorf("session expired or invalid device")
+	}
+
 	// Parse response
 	var dataResp struct {
 		LatestData struct {
@@ -373,6 +391,7 @@ func (c *Client) GetDeviceData(ctx context.Context, deviceID int) (*ThermostatSt
 		} `json:"latestData"`
 	}
 	if err := json.Unmarshal(body, &dataResp); err != nil {
+		log.Debug("Failed to parse device data: %v", err)
 		return nil, fmt.Errorf("failed to parse device data: %w", err)
 	}
 
@@ -383,12 +402,15 @@ func (c *Client) GetDeviceData(ctx context.Context, deviceID int) (*ThermostatSt
 		HeatSetpoint: ui.HeatSetpoint,
 		CoolSetpoint: ui.CoolSetpoint,
 		SystemMode:   SystemModeFromTCC(ui.SystemSwitchPosition),
-		Humidity:     ui.IndoorHumidity,
+		Humidity:     int(ui.IndoorHumidity),
 		IsHeating:    IsEquipmentHeating(ui.EquipmentOutputStatus),
 		IsCooling:    IsEquipmentCooling(ui.EquipmentOutputStatus),
 		Units:        ui.DisplayedUnits,
 		UpdatedAt:    time.Now(),
 	}
+
+	log.Debug("Successfully fetched device data: temp=%.1f°%s, heat=%.1f, cool=%.1f, mode=%s",
+		state.CurrentTemp, state.Units, state.HeatSetpoint, state.CoolSetpoint, state.SystemMode)
 
 	c.session.RefreshSession()
 
