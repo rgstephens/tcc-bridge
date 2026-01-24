@@ -1,0 +1,33 @@
+[Unit]
+Description=TCC to HomeKit Matter Bridge
+Documentation=https://github.com/gregjohnson/mitsubishi
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/tcc-bridge
+ExecStart=/home/pi/tcc-bridge/bin/tcc-bridge
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Environment
+Environment=HOME=/home/pi
+Environment=NODE_ENV=production
+
+# Security settings
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/pi/.tcc-bridge /home/pi/tcc-bridge/matter-bridge/data
+
+# Resource limits
+MemoryMax=512M
+CPUQuota=80%
+
+[Install]
+WantedBy=multi-user.target
