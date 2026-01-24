@@ -9,14 +9,15 @@ import (
 
 // Session manages the TCC authentication session
 type Session struct {
-	mu           sync.RWMutex
-	client       *http.Client
-	jar          *cookiejar.Jar
-	username     string
-	password     string
+	mu            sync.RWMutex
+	client        *http.Client
+	jar           *cookiejar.Jar
+	username      string
+	password      string
 	authenticated bool
-	lastLogin    time.Time
-	loginExpiry  time.Duration
+	lastLogin     time.Time
+	loginExpiry   time.Duration
+	lastDeviceID  int // Device ID extracted from login redirect
 }
 
 // NewSession creates a new TCC session
@@ -29,9 +30,7 @@ func NewSession() (*Session, error) {
 	client := &http.Client{
 		Jar:     jar,
 		Timeout: 30 * time.Second,
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
+		// Allow redirects to be followed (default behavior)
 	}
 
 	return &Session{
@@ -129,4 +128,18 @@ func (s *Session) LastLogin() time.Time {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.lastLogin
+}
+
+// SetLastDeviceID sets the last known device ID
+func (s *Session) SetLastDeviceID(id int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.lastDeviceID = id
+}
+
+// GetLastDeviceID returns the last known device ID
+func (s *Session) GetLastDeviceID() int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.lastDeviceID
 }

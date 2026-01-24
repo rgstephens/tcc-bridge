@@ -38,3 +38,5 @@ coverage/
 
 # Prompt files
 prompt.md
+
+.history/

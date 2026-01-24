@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gregjohnson/mitsubishi/internal/log"
 	"golang.org/x/time/rate"
 )
 
@@ -21,6 +22,7 @@ const (
 
 	// Paths
 	LoginPath      = "/portal"
+	LocationsPath  = "/portal/Location/GetLocationListData"
 	ZoneListPath   = "/portal/Device/GetZoneListData"
 	DeviceDataPath = "/portal/Device/CheckDataSession/%d"
 	ControlPath    = "/portal/Device/SubmitControlScreenChanges"
@@ -128,24 +130,57 @@ func (c *Client) Login(ctx context.Context) error {
 	}
 	defer resp.Body.Close()
 
-	// Check for successful login (redirect to portal or home)
-	if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusFound {
-		// Verify we're logged in by checking the redirect or response
-		location := resp.Header.Get("Location")
-		if location != "" && !strings.Contains(location, "Login") && !strings.Contains(location, "Error") {
+	// Check for successful login
+	// With redirects followed, we should end up at the portal page
+	body, _ = io.ReadAll(resp.Body)
+	bodyStr := string(body)
+
+	// Check final URL after redirects
+	finalURL := resp.Request.URL.String()
+	log.Debug("TCC login final URL: %s (status %d)", finalURL, resp.StatusCode)
+
+	// Try to extract device ID from URL like /portal/Device/Control/2246437
+	if deviceID := extractDeviceIDFromURL(finalURL); deviceID != 0 {
+		log.Debug("Extracted device ID from login redirect: %d", deviceID)
+		c.session.SetLastDeviceID(deviceID)
+	}
+
+	if resp.StatusCode == http.StatusOK {
+		// Check for error pages
+		if strings.Contains(finalURL, "/Error/") {
+			if strings.Contains(finalURL, "TooManyAttempts") {
+				log.Debug("TCC login rate limited: too many attempts")
+				return fmt.Errorf("login rate limited: too many attempts, please wait a few minutes")
+			}
+			log.Debug("TCC login error page: %s", finalURL)
+			return fmt.Errorf("login failed: redirected to error page")
+		}
+
+		// Check if we're on the portal (not login page)
+		if strings.Contains(finalURL, "/portal") && !strings.Contains(finalURL, "Login") {
+			log.Debug("TCC login successful (landed on portal)")
 			c.session.MarkAuthenticated()
 			return nil
 		}
 
-		// Read response body to check for login success
-		body, _ := io.ReadAll(resp.Body)
-		if strings.Contains(string(body), "LogoutLink") || strings.Contains(string(body), "Welcome") {
+		// Also check body for login indicators
+		if strings.Contains(bodyStr, "LogoutLink") || strings.Contains(bodyStr, "Welcome") ||
+			strings.Contains(bodyStr, "SignOut") || strings.Contains(bodyStr, "Total Connect") {
+			log.Debug("TCC login successful (found auth indicators in response)")
 			c.session.MarkAuthenticated()
 			return nil
+		}
+
+		// Check for login failure indicators
+		if strings.Contains(bodyStr, "Login failed") || strings.Contains(bodyStr, "Invalid") ||
+			strings.Contains(bodyStr, "incorrect") {
+			log.Debug("TCC login failed: invalid credentials")
+			return fmt.Errorf("login failed: invalid credentials")
 		}
 	}
 
-	return fmt.Errorf("login failed: unexpected response %d", resp.StatusCode)
+	log.Debug("TCC login response: %s", truncateForLog(bodyStr, 500))
+	return fmt.Errorf("login failed: unexpected response %d at %s", resp.StatusCode, finalURL)
 }
 
 // IsAuthenticated returns true if the client is authenticated
@@ -171,75 +206,60 @@ func (c *Client) GetDevices(ctx context.Context) ([]ThermostatState, error) {
 	}
 	c.pollMu.Unlock()
 
-	// Wait for rate limiter
-	if err := c.limiter.Wait(ctx); err != nil {
-		return nil, fmt.Errorf("rate limit wait: %w", err)
-	}
-
-	// Get zone list
-	req, err := http.NewRequestWithContext(ctx, "GET", c.baseURL+ZoneListPath, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create zone list request: %w", err)
-	}
-	c.setHeaders(req)
-	req.Header.Set("Accept", "application/json")
-
-	resp, err := c.session.GetClient().Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get zone list: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusUnauthorized {
-		c.session.MarkUnauthenticated()
-		return nil, fmt.Errorf("session expired")
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read zone list: %w", err)
-	}
-
-	// Parse response
 	var devices []ThermostatState
 
-	// Try to parse as array first
-	var zones []ZoneData
-	if err := json.Unmarshal(body, &zones); err == nil {
-		for _, z := range zones {
-			devices = append(devices, ThermostatState{
-				DeviceID:     z.DeviceID,
-				Name:         z.Name,
-				CurrentTemp:  z.CurrentTemp,
-				HeatSetpoint: z.HeatSetpoint,
-				CoolSetpoint: z.CoolSetpoint,
-				SystemMode:   SystemModeFromTCC(z.SystemSwitchPos),
-				Humidity:     z.IndoorHumidity,
-				IsHeating:    IsEquipmentHeating(z.EquipmentStatus),
-				IsCooling:    IsEquipmentCooling(z.EquipmentStatus),
-				UpdatedAt:    time.Now(),
-			})
+	// Try multiple endpoints to get device list
+	endpoints := []string{LocationsPath, ZoneListPath}
+
+	for _, endpoint := range endpoints {
+		// Wait for rate limiter
+		if err := c.limiter.Wait(ctx); err != nil {
+			return nil, fmt.Errorf("rate limit wait: %w", err)
 		}
-	} else {
-		// Try to parse as locations response
-		var locResp []LocationData
-		if err := json.Unmarshal(body, &locResp); err == nil {
-			for _, loc := range locResp {
-				for _, z := range loc.Devices {
-					devices = append(devices, ThermostatState{
-						DeviceID:     z.DeviceID,
-						Name:         z.Name,
-						CurrentTemp:  z.CurrentTemp,
-						HeatSetpoint: z.HeatSetpoint,
-						CoolSetpoint: z.CoolSetpoint,
-						SystemMode:   SystemModeFromTCC(z.SystemSwitchPos),
-						Humidity:     z.IndoorHumidity,
-						IsHeating:    IsEquipmentHeating(z.EquipmentStatus),
-						IsCooling:    IsEquipmentCooling(z.EquipmentStatus),
-						UpdatedAt:    time.Now(),
-					})
-				}
-			}
+
+		req, err := http.NewRequestWithContext(ctx, "GET", c.baseURL+endpoint, nil)
+		if err != nil {
+			continue
+		}
+		c.setHeaders(req)
+		req.Header.Set("Accept", "application/json")
+		req.Header.Set("X-Requested-With", "XMLHttpRequest")
+
+		resp, err := c.session.GetClient().Do(req)
+		if err != nil {
+			log.Debug("TCC endpoint %s failed: %v", endpoint, err)
+			continue
+		}
+
+		body, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil {
+			continue
+		}
+
+		finalURL := resp.Request.URL.String()
+		log.Debug("TCC %s response (status %d, url %s): %s", endpoint, resp.StatusCode, finalURL, truncateForLog(string(body), 500))
+
+		// Check for redirects to error or login pages
+		if strings.Contains(finalURL, "Error") || strings.Contains(finalURL, "Login") {
+			log.Debug("TCC endpoint %s redirected to error/login", endpoint)
+			continue
+		}
+
+		// Try to parse the response
+		devices = c.parseDeviceResponse(body)
+		if len(devices) > 0 {
+			log.Debug("Found %d devices from %s", len(devices), endpoint)
+			break
+		}
+	}
+
+	// If no devices found from list endpoints, try to get device from login redirect
+	lastDeviceID := c.session.GetLastDeviceID()
+	if len(devices) == 0 && lastDeviceID != 0 {
+		log.Debug("Trying to fetch known device ID %d", lastDeviceID)
+		if device, err := c.GetDeviceData(ctx, lastDeviceID); err == nil && device != nil {
+			devices = append(devices, *device)
 		}
 	}
 
@@ -255,6 +275,58 @@ func (c *Client) GetDevices(ctx context.Context) ([]ThermostatState, error) {
 	c.session.RefreshSession()
 
 	return devices, nil
+}
+
+// parseDeviceResponse tries to parse device data from various TCC response formats
+func (c *Client) parseDeviceResponse(body []byte) []ThermostatState {
+	var devices []ThermostatState
+
+	// Try to parse as ZoneData array
+	var zones []ZoneData
+	if err := json.Unmarshal(body, &zones); err == nil && len(zones) > 0 {
+		log.Debug("Parsed as ZoneData array: %d zones", len(zones))
+		for _, z := range zones {
+			devices = append(devices, ThermostatState{
+				DeviceID:     z.DeviceID,
+				Name:         z.Name,
+				CurrentTemp:  z.CurrentTemp,
+				HeatSetpoint: z.HeatSetpoint,
+				CoolSetpoint: z.CoolSetpoint,
+				SystemMode:   SystemModeFromTCC(z.SystemSwitchPos),
+				Humidity:     z.IndoorHumidity,
+				IsHeating:    IsEquipmentHeating(z.EquipmentStatus),
+				IsCooling:    IsEquipmentCooling(z.EquipmentStatus),
+				UpdatedAt:    time.Now(),
+			})
+		}
+		return devices
+	}
+
+	// Try to parse as LocationData array
+	var locResp []LocationData
+	if err := json.Unmarshal(body, &locResp); err == nil && len(locResp) > 0 {
+		log.Debug("Parsed as LocationData array: %d locations", len(locResp))
+		for _, loc := range locResp {
+			log.Debug("Location %s has %d zones", loc.Name, len(loc.Devices))
+			for _, z := range loc.Devices {
+				devices = append(devices, ThermostatState{
+					DeviceID:     z.DeviceID,
+					Name:         z.Name,
+					CurrentTemp:  z.CurrentTemp,
+					HeatSetpoint: z.HeatSetpoint,
+					CoolSetpoint: z.CoolSetpoint,
+					SystemMode:   SystemModeFromTCC(z.SystemSwitchPos),
+					Humidity:     z.IndoorHumidity,
+					IsHeating:    IsEquipmentHeating(z.EquipmentStatus),
+					IsCooling:    IsEquipmentCooling(z.EquipmentStatus),
+					UpdatedAt:    time.Now(),
+				})
+			}
+		}
+		return devices
+	}
+
+	return devices
 }
 
 // GetDeviceData retrieves detailed data for a specific device
@@ -439,4 +511,24 @@ func extractVerificationToken(html string) string {
 
 func intPtr(i int) *int {
 	return &i
+}
+
+// truncateForLog truncates a string for logging purposes
+func truncateForLog(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + "..."
+}
+
+// extractDeviceIDFromURL extracts device ID from URLs like /portal/Device/Control/2246437
+func extractDeviceIDFromURL(url string) int {
+	re := regexp.MustCompile(`/Device/Control/(\d+)`)
+	matches := re.FindStringSubmatch(url)
+	if len(matches) > 1 {
+		var id int
+		fmt.Sscanf(matches[1], "%d", &id)
+		return id
+	}
+	return 0
 }
