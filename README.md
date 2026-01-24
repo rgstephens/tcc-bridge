@@ -119,6 +119,43 @@ mitsubishi/
 
 ## Deployment
 
+### Docker (Recommended)
+
+Build and push to your registry:
+
+```bash
+# Build Docker image
+make docker-build
+
+# Push to registry
+make docker-push
+```
+
+Run with Docker Compose:
+
+```bash
+# Start services
+make docker-up
+
+# View logs
+make docker-logs
+
+# Stop services
+make docker-down
+```
+
+Or run directly:
+
+```bash
+docker run -d \
+  --name tcc-bridge \
+  -p 8080:8080 \
+  -p 5540:5540 \
+  -v tcc-data:/app/data \
+  --restart unless-stopped \
+  registry.gstephens.org/tcc-bridge:latest
+```
+
 ### Systemd Service
 
 ```bash
@@ -169,3 +206,4 @@ MIT
 - Add a version and build date and show it on the footer of each web page
 - The logs page needs to show key matter interactions, pairing, messages sent/received, info on the apple home
 - The log should show TCC interactions to get a sense of when we are hitting the 10 min limit
+

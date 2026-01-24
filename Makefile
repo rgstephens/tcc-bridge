@@ -1,10 +1,15 @@
-.PHONY: all build build-go build-frontend build-matter clean dev install test
+.PHONY: all build build-go build-frontend build-matter clean dev install test docker-build docker-push docker-run
 
 # Version and build info
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 BUILD_DATE ?= $(shell date -u +"%Y-%m-%d")
 LDFLAGS := -X github.com/gregjohnson/mitsubishi/internal/web.Version=$(VERSION) \
            -X github.com/gregjohnson/mitsubishi/internal/web.BuildDate=$(BUILD_DATE)
+
+# Docker settings
+DOCKER_REGISTRY ?= registry.gstephens.org
+DOCKER_IMAGE ?= $(DOCKER_REGISTRY)/tcc-bridge
+DOCKER_TAG ?= latest
 
 # Default target
 all: build
@@ -114,6 +119,46 @@ lint:
 tidy:
 	go mod tidy
 
+# Docker build
+docker-build:
+	@echo "Building Docker image $(DOCKER_IMAGE):$(DOCKER_TAG)..."
+	@echo "Version: $(VERSION), Build date: $(BUILD_DATE)"
+	docker build \
+		--build-arg VERSION=$(VERSION) \
+		--build-arg BUILD_DATE=$(BUILD_DATE) \
+		-t $(DOCKER_IMAGE):$(DOCKER_TAG) \
+		-t $(DOCKER_IMAGE):$(VERSION) \
+		.
+
+# Docker push to registry
+docker-push: docker-build
+	@echo "Pushing Docker image to $(DOCKER_REGISTRY)..."
+	docker push $(DOCKER_IMAGE):$(DOCKER_TAG)
+	docker push $(DOCKER_IMAGE):$(VERSION)
+
+# Run Docker container
+docker-run:
+	@echo "Running Docker container..."
+	docker run --rm -it \
+		-p 8080:8080 \
+		-p 5540:5540 \
+		-v tcc-data:/app/data \
+		$(DOCKER_IMAGE):$(DOCKER_TAG)
+
+# Docker compose up
+docker-up:
+	@echo "Starting services with docker-compose..."
+	VERSION=$(VERSION) BUILD_DATE=$(BUILD_DATE) docker-compose up -d
+
+# Docker compose down
+docker-down:
+	@echo "Stopping services..."
+	docker-compose down
+
+# Docker compose logs
+docker-logs:
+	docker-compose logs -f
+
 # Help
 help:
 	@echo "TCC-Matter Bridge Makefile"
@@ -132,4 +177,13 @@ help:
 	@echo "  clean           Clean build artifacts"
 	@echo "  install-service Install systemd service"
 	@echo "  logs            Show service logs"
+	@echo ""
+	@echo "Docker targets:"
+	@echo "  docker-build    Build Docker image"
+	@echo "  docker-push     Build and push to registry"
+	@echo "  docker-run      Run Docker container"
+	@echo "  docker-up       Start with docker-compose"
+	@echo "  docker-down     Stop docker-compose"
+	@echo "  docker-logs     View docker-compose logs"
+	@echo ""
 	@echo "  help            Show this help"

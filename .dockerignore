@@ -1,0 +1,46 @@
+# Build outputs
+bin/
+web/dist/
+matter-bridge/dist/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.history/
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+
+# Data files
+*.db
+*.key
+.matter/
+.tcc-bridge/
+matter-bridge/data/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test coverage
+coverage/
+
+# Documentation
+README.md
+prompt.md
+
+# Config files
+configs/
+scripts/
