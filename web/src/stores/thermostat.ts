@@ -129,7 +129,8 @@ export const useThermostatStore = defineStore('thermostat', () => {
     })
 
     wsClient.on('thermostat_update', (data) => {
-      const update = data as ThermostatState
+      const message = data as { type: string; data: ThermostatState }
+      const update = message.data
       const index = thermostats.value.findIndex((t) => t.device_id === update.device_id)
       if (index > -1) {
         thermostats.value[index] = update
@@ -139,7 +140,8 @@ export const useThermostatStore = defineStore('thermostat', () => {
     })
 
     wsClient.on('status_update', (data) => {
-      status.value = data as SystemStatus
+      const message = data as { type: string; data: SystemStatus }
+      status.value = message.data
     })
 
     wsClient.connect()

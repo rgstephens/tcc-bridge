@@ -162,6 +162,24 @@ func (db *DB) GetAllThermostatStates() ([]ThermostatState, error) {
 	return states, nil
 }
 
+// GetThermostatStateByDeviceID retrieves thermostat state for a specific device
+func (db *DB) GetThermostatStateByDeviceID(deviceID int) (*ThermostatState, error) {
+	var state ThermostatState
+	err := db.conn.QueryRow(`
+		SELECT id, device_id, name, current_temp, heat_setpoint, cool_setpoint, system_mode, humidity, is_heating, is_cooling, updated_at
+		FROM thermostat_state
+		WHERE device_id = ?
+		LIMIT 1
+	`, deviceID).Scan(
+		&state.ID, &state.DeviceID, &state.Name, &state.CurrentTemp, &state.HeatSetpoint,
+		&state.CoolSetpoint, &state.SystemMode, &state.Humidity, &state.IsHeating, &state.IsCooling, &state.UpdatedAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get thermostat state for device %d: %w", deviceID, err)
+	}
+	return &state, nil
+}
+
 // --- Event Log ---
 
 // LogEvent records an event in the log

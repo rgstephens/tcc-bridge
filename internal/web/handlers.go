@@ -3,8 +3,10 @@ package web
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gregjohnson/mitsubishi/internal/log"
@@ -160,9 +162,22 @@ func (s *Server) handleSetSetpoint(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	db := s.service.GetDB()
 	tccClient := s.service.GetTCCClient()
 	ctx := r.Context()
 
+	// Get current state for logging
+	oldState, _ := db.GetThermostatStateByDeviceID(req.DeviceID)
+	oldValue := 0.0
+	if oldState != nil {
+		if req.Type == "heat" {
+			oldValue = oldState.HeatSetpoint
+		} else {
+			oldValue = oldState.CoolSetpoint
+		}
+	}
+
+	// Set the setpoint in TCC
 	var err error
 	switch req.Type {
 	case "heat":
@@ -180,13 +195,57 @@ func (s *Server) handleSetSetpoint(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Log the event
-	db := s.service.GetDB()
+	// Fetch updated state from TCC
+	updatedDevice, err := tccClient.GetDeviceData(ctx, req.DeviceID)
+	if err != nil {
+		log.Warn("Failed to fetch updated state after setpoint change: %v", err)
+	} else {
+		// Save to database
+		state := &storage.ThermostatState{
+			DeviceID:     updatedDevice.DeviceID,
+			Name:         updatedDevice.Name,
+			CurrentTemp:  updatedDevice.CurrentTemp,
+			HeatSetpoint: updatedDevice.HeatSetpoint,
+			CoolSetpoint: updatedDevice.CoolSetpoint,
+			SystemMode:   storage.ParseSystemMode(updatedDevice.SystemMode),
+			Humidity:     updatedDevice.Humidity,
+			IsHeating:    updatedDevice.IsHeating,
+			IsCooling:    updatedDevice.IsCooling,
+		}
+		db.SaveThermostatState(state)
+
+		// Update Matter bridge
+		matterBridge := s.service.GetMatterBridge()
+		if err := matterBridge.UpdateState(ctx, *updatedDevice); err != nil {
+			log.Debug("Failed to update Matter state: %v", err)
+		}
+
+		// Broadcast update via WebSocket
+		s.hub.Broadcast(map[string]interface{}{
+			"type": "thermostat_update",
+			"data": ThermostatResponse{
+				DeviceID:     updatedDevice.DeviceID,
+				Name:         updatedDevice.Name,
+				CurrentTemp:  updatedDevice.CurrentTemp,
+				HeatSetpoint: updatedDevice.HeatSetpoint,
+				CoolSetpoint: updatedDevice.CoolSetpoint,
+				SystemMode:   updatedDevice.SystemMode,
+				Humidity:     updatedDevice.Humidity,
+				IsHeating:    updatedDevice.IsHeating,
+				IsCooling:    updatedDevice.IsCooling,
+				UpdatedAt:    updatedDevice.UpdatedAt.Format(time.RFC3339),
+			},
+		})
+	}
+
+	// Log the event with details
 	db.LogEvent(storage.EventSourceUser, storage.EventTypeTempChange,
-		"Setpoint changed via UI", map[string]interface{}{
-			"device_id": req.DeviceID,
-			"type":      req.Type,
-			"value":     req.Value,
+		fmt.Sprintf("%s setpoint changed from %.1f°F to %.1f°F",
+			strings.Title(req.Type), oldValue, req.Value), map[string]interface{}{
+			"device_id":  req.DeviceID,
+			"type":       req.Type,
+			"old_value":  oldValue,
+			"new_value":  req.Value,
 		})
 
 	writeJSON(w, map[string]string{"status": "ok"})
@@ -200,21 +259,73 @@ func (s *Server) handleSetMode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	db := s.service.GetDB()
 	tccClient := s.service.GetTCCClient()
 	ctx := r.Context()
 
+	// Get current state for logging
+	oldState, _ := db.GetThermostatStateByDeviceID(req.DeviceID)
+	oldMode := "unknown"
+	if oldState != nil {
+		oldMode = oldState.SystemMode.String()
+	}
+
+	// Set the mode in TCC
 	if err := tccClient.SetSystemMode(ctx, req.DeviceID, req.Mode); err != nil {
 		log.Error("Failed to set mode: %v", err)
 		writeError(w, http.StatusInternalServerError, "Failed to set mode")
 		return
 	}
 
-	// Log the event
-	db := s.service.GetDB()
+	// Fetch updated state from TCC
+	updatedDevice, err := tccClient.GetDeviceData(ctx, req.DeviceID)
+	if err != nil {
+		log.Warn("Failed to fetch updated state after mode change: %v", err)
+	} else {
+		// Save to database
+		state := &storage.ThermostatState{
+			DeviceID:     updatedDevice.DeviceID,
+			Name:         updatedDevice.Name,
+			CurrentTemp:  updatedDevice.CurrentTemp,
+			HeatSetpoint: updatedDevice.HeatSetpoint,
+			CoolSetpoint: updatedDevice.CoolSetpoint,
+			SystemMode:   storage.ParseSystemMode(updatedDevice.SystemMode),
+			Humidity:     updatedDevice.Humidity,
+			IsHeating:    updatedDevice.IsHeating,
+			IsCooling:    updatedDevice.IsCooling,
+		}
+		db.SaveThermostatState(state)
+
+		// Update Matter bridge
+		matterBridge := s.service.GetMatterBridge()
+		if err := matterBridge.UpdateState(ctx, *updatedDevice); err != nil {
+			log.Debug("Failed to update Matter state: %v", err)
+		}
+
+		// Broadcast update via WebSocket
+		s.hub.Broadcast(map[string]interface{}{
+			"type": "thermostat_update",
+			"data": ThermostatResponse{
+				DeviceID:     updatedDevice.DeviceID,
+				Name:         updatedDevice.Name,
+				CurrentTemp:  updatedDevice.CurrentTemp,
+				HeatSetpoint: updatedDevice.HeatSetpoint,
+				CoolSetpoint: updatedDevice.CoolSetpoint,
+				SystemMode:   updatedDevice.SystemMode,
+				Humidity:     updatedDevice.Humidity,
+				IsHeating:    updatedDevice.IsHeating,
+				IsCooling:    updatedDevice.IsCooling,
+				UpdatedAt:    updatedDevice.UpdatedAt.Format(time.RFC3339),
+			},
+		})
+	}
+
+	// Log the event with details
 	db.LogEvent(storage.EventSourceUser, storage.EventTypeModeChange,
-		"Mode changed via UI", map[string]interface{}{
+		fmt.Sprintf("Mode changed from %s to %s", oldMode, req.Mode), map[string]interface{}{
 			"device_id": req.DeviceID,
-			"mode":      req.Mode,
+			"old_mode":  oldMode,
+			"new_mode":  req.Mode,
 		})
 
 	writeJSON(w, map[string]string{"status": "ok"})
