@@ -66,6 +66,7 @@ export class ThermostatEndpoint {
   private endpoint: Endpoint<typeof TccThermostatDevice>;
   private commandHandler?: CommandHandler;
   private currentState: ThermostatState;
+  private isUpdating: boolean = false;
 
   constructor(name: string = "TCC Thermostat") {
     this.currentState = {
@@ -111,19 +112,19 @@ export class ThermostatEndpoint {
   async setupCommandHandlers(): Promise<void> {
     // Watch for attribute changes from HomeKit
     this.endpoint.events.thermostat.occupiedHeatingSetpoint$Changed.on(async (value: number) => {
-      if (this.commandHandler) {
+      if (this.commandHandler && !this.isUpdating) {
         await this.commandHandler("setHeatingSetpoint", matterToCelsius(value));
       }
     });
 
     this.endpoint.events.thermostat.occupiedCoolingSetpoint$Changed.on(async (value: number) => {
-      if (this.commandHandler) {
+      if (this.commandHandler && !this.isUpdating) {
         await this.commandHandler("setCoolingSetpoint", matterToCelsius(value));
       }
     });
 
     this.endpoint.events.thermostat.systemMode$Changed.on(async (value: Thermostat.SystemMode) => {
-      if (this.commandHandler) {
+      if (this.commandHandler && !this.isUpdating) {
         await this.commandHandler("setSystemMode", matterToSystemMode(value));
       }
     });
@@ -133,6 +134,9 @@ export class ThermostatEndpoint {
     this.currentState = state;
 
     try {
+      // Set flag to prevent event handlers from firing during programmatic updates
+      this.isUpdating = true;
+
       await this.endpoint.set({
         thermostat: {
           localTemperature: celsiusToMatter(state.currentTemp),
@@ -143,6 +147,9 @@ export class ThermostatEndpoint {
       });
     } catch (error) {
       console.error("Failed to update thermostat state:", error);
+    } finally {
+      // Always clear the flag, even if update failed
+      this.isUpdating = false;
     }
   }
 

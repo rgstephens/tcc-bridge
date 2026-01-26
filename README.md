@@ -203,7 +203,12 @@ MIT
 - Pairing page shows "Loading QR code..." but then never loads
 - The Status page is blank. It should at least show if we haven't configured the connection yet. If configured it should show the basic thermostat information
 
+### Latest
+
+Points 139,511 > 0
+
 - Add a version and build date and show it on the footer of each web page
-- The logs page needs to show key matter interactions, pairing, messages sent/received, info on the apple home
 - The log should show TCC interactions to get a sense of when we are hitting the 10 min limit
+
+- The logs page needs to show key matter interactions, pairing, messages sent/received, info on the apple home
 

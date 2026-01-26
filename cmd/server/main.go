@@ -123,6 +123,11 @@ func main() {
 		// Continue anyway - Matter bridge might not be built yet
 	}
 
+	// Set up command handler for HomeKit commands
+	matterBridge.SetCommandHandler(func(cmd matter.Command) error {
+		return svc.handleMatterCommand(ctx, cmd)
+	})
+
 	// Start polling loop
 	go svc.runPollingLoop(ctx)
 
@@ -189,6 +194,189 @@ func (s *Service) runPollingLoop(ctx context.Context) {
 			s.pollTCC(ctx)
 		}
 	}
+}
+
+// handleMatterCommand processes commands from HomeKit via Matter bridge
+func (s *Service) handleMatterCommand(ctx context.Context, cmd matter.Command) error {
+	log.Debug("Processing HomeKit command: %s = %v", cmd.Action, cmd.Value)
+
+	// Get device ID from database (for now, use first device)
+	state, err := s.db.GetThermostatState()
+	if err != nil {
+		return fmt.Errorf("failed to get thermostat state: %w", err)
+	}
+	deviceID := state.DeviceID
+
+	// Get old state for logging
+	oldState, _ := s.db.GetThermostatStateByDeviceID(deviceID)
+
+	// Process the command
+	switch cmd.Action {
+	case "setSystemMode":
+		mode, ok := cmd.Value.(string)
+		if !ok {
+			return fmt.Errorf("invalid system mode value type")
+		}
+
+		oldMode := "unknown"
+		if oldState != nil {
+			oldMode = oldState.SystemMode.String()
+		}
+
+		// Set mode in TCC
+		if err := s.tccClient.SetSystemMode(ctx, deviceID, mode); err != nil {
+			log.Error("Failed to set mode from HomeKit: %v", err)
+			return err
+		}
+
+		// Fetch updated state
+		updatedDevice, err := s.tccClient.GetDeviceData(ctx, deviceID)
+		if err != nil {
+			log.Warn("Failed to fetch updated state after HomeKit mode change: %v", err)
+		} else {
+			// Save to database
+			newState := &storage.ThermostatState{
+				DeviceID:     updatedDevice.DeviceID,
+				Name:         updatedDevice.Name,
+				CurrentTemp:  updatedDevice.CurrentTemp,
+				HeatSetpoint: updatedDevice.HeatSetpoint,
+				CoolSetpoint: updatedDevice.CoolSetpoint,
+				SystemMode:   storage.ParseSystemMode(updatedDevice.SystemMode),
+				Humidity:     updatedDevice.Humidity,
+				IsHeating:    updatedDevice.IsHeating,
+				IsCooling:    updatedDevice.IsCooling,
+			}
+			s.db.SaveThermostatState(newState)
+
+			// Update Matter bridge
+			s.matterBridge.UpdateState(ctx, *updatedDevice)
+		}
+
+		// Log the change
+		s.db.LogEvent(storage.EventSourceHomeKit, storage.EventTypeModeChange,
+			fmt.Sprintf("Mode changed from %s to %s", oldMode, mode),
+			map[string]interface{}{
+				"device_id": deviceID,
+				"old_mode":  oldMode,
+				"new_mode":  mode,
+			})
+
+		log.Info("HomeKit: Mode changed from %s to %s", oldMode, mode)
+
+	case "setHeatingSetpoint":
+		// Value comes in Celsius, need to convert to Fahrenheit
+		celsius, ok := cmd.Value.(float64)
+		if !ok {
+			return fmt.Errorf("invalid setpoint value type")
+		}
+		fahrenheit := celsius*9/5 + 32
+
+		oldSetpoint := 0.0
+		if oldState != nil {
+			oldSetpoint = oldState.HeatSetpoint
+		}
+
+		// Set heat setpoint in TCC
+		if err := s.tccClient.SetHeatSetpoint(ctx, deviceID, fahrenheit); err != nil {
+			log.Error("Failed to set heat setpoint from HomeKit: %v", err)
+			return err
+		}
+
+		// Fetch updated state
+		updatedDevice, err := s.tccClient.GetDeviceData(ctx, deviceID)
+		if err != nil {
+			log.Warn("Failed to fetch updated state after HomeKit setpoint change: %v", err)
+		} else {
+			// Save to database
+			newState := &storage.ThermostatState{
+				DeviceID:     updatedDevice.DeviceID,
+				Name:         updatedDevice.Name,
+				CurrentTemp:  updatedDevice.CurrentTemp,
+				HeatSetpoint: updatedDevice.HeatSetpoint,
+				CoolSetpoint: updatedDevice.CoolSetpoint,
+				SystemMode:   storage.ParseSystemMode(updatedDevice.SystemMode),
+				Humidity:     updatedDevice.Humidity,
+				IsHeating:    updatedDevice.IsHeating,
+				IsCooling:    updatedDevice.IsCooling,
+			}
+			s.db.SaveThermostatState(newState)
+
+			// Update Matter bridge
+			s.matterBridge.UpdateState(ctx, *updatedDevice)
+		}
+
+		// Log the change
+		s.db.LogEvent(storage.EventSourceHomeKit, storage.EventTypeTempChange,
+			fmt.Sprintf("Heat setpoint changed from %.1f°F to %.1f°F", oldSetpoint, fahrenheit),
+			map[string]interface{}{
+				"device_id":     deviceID,
+				"type":          "heat",
+				"old_setpoint":  oldSetpoint,
+				"new_setpoint":  fahrenheit,
+			})
+
+		log.Info("HomeKit: Heat setpoint changed from %.1f°F to %.1f°F", oldSetpoint, fahrenheit)
+
+	case "setCoolingSetpoint":
+		// Value comes in Celsius, need to convert to Fahrenheit
+		celsius, ok := cmd.Value.(float64)
+		if !ok {
+			return fmt.Errorf("invalid setpoint value type")
+		}
+		fahrenheit := celsius*9/5 + 32
+
+		oldSetpoint := 0.0
+		if oldState != nil {
+			oldSetpoint = oldState.CoolSetpoint
+		}
+
+		// Set cool setpoint in TCC
+		if err := s.tccClient.SetCoolSetpoint(ctx, deviceID, fahrenheit); err != nil {
+			log.Error("Failed to set cool setpoint from HomeKit: %v", err)
+			return err
+		}
+
+		// Fetch updated state
+		updatedDevice, err := s.tccClient.GetDeviceData(ctx, deviceID)
+		if err != nil {
+			log.Warn("Failed to fetch updated state after HomeKit setpoint change: %v", err)
+		} else {
+			// Save to database
+			newState := &storage.ThermostatState{
+				DeviceID:     updatedDevice.DeviceID,
+				Name:         updatedDevice.Name,
+				CurrentTemp:  updatedDevice.CurrentTemp,
+				HeatSetpoint: updatedDevice.HeatSetpoint,
+				CoolSetpoint: updatedDevice.CoolSetpoint,
+				SystemMode:   storage.ParseSystemMode(updatedDevice.SystemMode),
+				Humidity:     updatedDevice.Humidity,
+				IsHeating:    updatedDevice.IsHeating,
+				IsCooling:    updatedDevice.IsCooling,
+			}
+			s.db.SaveThermostatState(newState)
+
+			// Update Matter bridge
+			s.matterBridge.UpdateState(ctx, *updatedDevice)
+		}
+
+		// Log the change
+		s.db.LogEvent(storage.EventSourceHomeKit, storage.EventTypeTempChange,
+			fmt.Sprintf("Cool setpoint changed from %.1f°F to %.1f°F", oldSetpoint, fahrenheit),
+			map[string]interface{}{
+				"device_id":     deviceID,
+				"type":          "cool",
+				"old_setpoint":  oldSetpoint,
+				"new_setpoint":  fahrenheit,
+			})
+
+		log.Info("HomeKit: Cool setpoint changed from %.1f°F to %.1f°F", oldSetpoint, fahrenheit)
+
+	default:
+		log.Warn("Unknown HomeKit command: %s", cmd.Action)
+		return fmt.Errorf("unknown command: %s", cmd.Action)
+	}
+
+	return nil
 }
 
 func (s *Service) pollTCC(ctx context.Context) {
