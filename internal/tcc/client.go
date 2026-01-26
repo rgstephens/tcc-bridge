@@ -82,6 +82,8 @@ func (c *Client) Login(ctx context.Context) error {
 
 	// First, get the login page to get any required tokens
 	loginURL := c.baseURL + LoginPath
+	log.Debug("TCC connecting to %s", loginURL)
+
 	req, err := http.NewRequestWithContext(ctx, "GET", loginURL, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create login page request: %w", err)
@@ -90,9 +92,17 @@ func (c *Client) Login(ctx context.Context) error {
 
 	resp, err := c.session.GetClient().Do(req)
 	if err != nil {
+		log.Error("TCC connection failed to %s: %v", loginURL, err)
 		return fmt.Errorf("failed to get login page: %w", err)
 	}
 	defer resp.Body.Close()
+
+	log.Debug("TCC login page response: status %d from %s", resp.StatusCode, loginURL)
+
+	if resp.StatusCode != http.StatusOK {
+		log.Error("TCC login page returned status %d from %s", resp.StatusCode, loginURL)
+		return fmt.Errorf("failed to get login page: unexpected status %d", resp.StatusCode)
+	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -117,6 +127,8 @@ func (c *Client) Login(ctx context.Context) error {
 	}
 
 	// Submit login
+	log.Debug("TCC submitting login credentials to %s", loginURL)
+
 	req, err = http.NewRequestWithContext(ctx, "POST", loginURL, strings.NewReader(formData.Encode()))
 	if err != nil {
 		return fmt.Errorf("failed to create login request: %w", err)
@@ -126,6 +138,7 @@ func (c *Client) Login(ctx context.Context) error {
 
 	resp, err = c.session.GetClient().Do(req)
 	if err != nil {
+		log.Error("TCC login POST failed to %s: %v", loginURL, err)
 		return fmt.Errorf("failed to submit login: %w", err)
 	}
 	defer resp.Body.Close()
