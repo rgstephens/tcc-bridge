@@ -168,9 +168,17 @@ export class ThermostatEndpoint {
 
       // Only call set() if there are actual changes
       if (Object.keys(updates).length > 0) {
+        // Log the update with key thermostat values
+        const tempF = (state.currentTemp * 9/5 + 32).toFixed(1);
+        const heatF = (state.heatSetpoint * 9/5 + 32).toFixed(1);
+        const coolF = (state.coolSetpoint * 9/5 + 32).toFixed(1);
+        console.log(`Publishing to Matter: temp=${tempF}°F, heat=${heatF}°F, cool=${coolF}°F, mode=${state.systemMode} (changes: ${Object.keys(updates).join(', ')})`);
+
         await this.endpoint.set({
           thermostat: updates,
         });
+
+        console.log("Matter state update successful");
       }
     } catch (error) {
       console.error("Failed to update thermostat state:", error);

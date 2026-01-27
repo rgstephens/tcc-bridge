@@ -53,4 +53,5 @@ const (
 	EventTypeCommissioned = "commissioned"
 	EventTypeConnection   = "connection"
 	EventTypeError        = "error"
+	EventTypeMatterEvent  = "matter_event"
 )

@@ -87,12 +87,41 @@ class MatterBridge {
       console.log("Device commissioned!");
       this.storage.setCommissioned(true);
       this.bridgeServer.setCommissioned(true);
+      this.bridgeServer.broadcastEvent({
+        type: "matter_event",
+        timestamp: new Date().toISOString(),
+        data: { event: "commissioned", message: "Device paired with HomeKit" },
+      });
     });
 
     this.server.lifecycle.decommissioned.on(() => {
       console.log("Device decommissioned");
       this.storage.setCommissioned(false);
       this.bridgeServer.setCommissioned(false);
+      this.bridgeServer.broadcastEvent({
+        type: "matter_event",
+        timestamp: new Date().toISOString(),
+        data: { event: "decommissioned", message: "Device removed from HomeKit" },
+      });
+    });
+
+    // Set up session event handlers for HomeKit connections
+    this.server.lifecycle.online.on(() => {
+      console.log("HomeKit controller connected");
+      this.bridgeServer.broadcastEvent({
+        type: "matter_event",
+        timestamp: new Date().toISOString(),
+        data: { event: "online", message: "HomeKit controller connected" },
+      });
+    });
+
+    this.server.lifecycle.offline.on(() => {
+      console.log("HomeKit controller disconnected");
+      this.bridgeServer.broadcastEvent({
+        type: "matter_event",
+        timestamp: new Date().toISOString(),
+        data: { event: "offline", message: "HomeKit controller disconnected" },
+      });
     });
 
     // Start the Matter server

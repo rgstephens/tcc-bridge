@@ -388,8 +388,14 @@ func (s *Service) pollTCC(ctx context.Context) {
 				log.Warn("TCC rate limited: %v", err)
 				s.db.LogEvent(storage.EventSourceTCC, storage.EventTypeError,
 					"Rate limited by TCC API", map[string]interface{}{"error": err.Error()})
+			} else if strings.Contains(err.Error(), "deadline exceeded") || strings.Contains(err.Error(), "connection refused") {
+				log.Error("TCC connection failed: %v", err)
+				s.db.LogEvent(storage.EventSourceTCC, storage.EventTypeError,
+					"Connection to TCC failed (timeout or network error)", map[string]interface{}{"error": err.Error()})
 			} else {
-				log.Debug("TCC login failed: %v", err)
+				log.Warn("TCC login failed: %v", err)
+				s.db.LogEvent(storage.EventSourceTCC, storage.EventTypeError,
+					fmt.Sprintf("Login failed: %v", err), nil)
 			}
 			return
 		}

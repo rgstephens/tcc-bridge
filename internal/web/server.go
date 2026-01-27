@@ -101,12 +101,21 @@ func (s *Server) broadcastEvents(ctx context.Context) {
 		return
 	}
 
+	db := s.service.GetDB()
+
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case event := <-bridge.Events():
 			s.hub.Broadcast(event)
+
+			// Log Matter events to database
+			if event.Type == matter.EventTypeMatterEvent && event.Data != nil {
+				if message, ok := event.Data["message"].(string); ok {
+					db.LogEvent(storage.EventSourceMatter, storage.EventTypeConnection, message, event.Data)
+				}
+			}
 		}
 	}
 }
