@@ -131,20 +131,41 @@ export class ThermostatEndpoint {
   }
 
   async updateState(state: ThermostatState): Promise<void> {
+    const prevState = this.currentState;
     this.currentState = state;
 
     try {
       // Set flag to prevent event handlers from firing during programmatic updates
       this.isUpdating = true;
 
-      await this.endpoint.set({
-        thermostat: {
-          localTemperature: celsiusToMatter(state.currentTemp),
-          occupiedHeatingSetpoint: celsiusToMatter(state.heatSetpoint),
-          occupiedCoolingSetpoint: celsiusToMatter(state.coolSetpoint),
-          systemMode: systemModeToMatter(state.systemMode),
-        },
-      });
+      // Only update values that have actually changed to avoid triggering
+      // Matter.js reactive loops
+      const updates: Record<string, unknown> = {};
+
+      const newLocalTemp = celsiusToMatter(state.currentTemp);
+      const newHeatSetpoint = celsiusToMatter(state.heatSetpoint);
+      const newCoolSetpoint = celsiusToMatter(state.coolSetpoint);
+      const newSystemMode = systemModeToMatter(state.systemMode);
+
+      if (celsiusToMatter(prevState.currentTemp) !== newLocalTemp) {
+        updates.localTemperature = newLocalTemp;
+      }
+      if (celsiusToMatter(prevState.heatSetpoint) !== newHeatSetpoint) {
+        updates.occupiedHeatingSetpoint = newHeatSetpoint;
+      }
+      if (celsiusToMatter(prevState.coolSetpoint) !== newCoolSetpoint) {
+        updates.occupiedCoolingSetpoint = newCoolSetpoint;
+      }
+      if (systemModeToMatter(prevState.systemMode) !== newSystemMode) {
+        updates.systemMode = newSystemMode;
+      }
+
+      // Only call set() if there are actual changes
+      if (Object.keys(updates).length > 0) {
+        await this.endpoint.set({
+          thermostat: updates,
+        });
+      }
     } catch (error) {
       console.error("Failed to update thermostat state:", error);
     } finally {
