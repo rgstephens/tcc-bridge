@@ -28,7 +28,7 @@ func main() {
 		log.SetDefaultLevel(log.LevelDebug)
 	}
 
-	log.Info("Starting TCC-Matter Bridge")
+	log.Info("Starting TCC-Matter Bridge %s (built %s)", web.Version, web.BuildDate)
 
 	// Load configuration
 	var cfg *config.Config
