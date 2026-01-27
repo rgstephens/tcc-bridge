@@ -171,6 +171,26 @@ func (b *Bridge) UpdateState(ctx context.Context, state tcc.ThermostatState) err
 	return nil
 }
 
+// Decommission decommissions the Matter device (factory reset)
+func (b *Bridge) Decommission(ctx context.Context) error {
+	req, err := http.NewRequestWithContext(ctx, "DELETE", b.baseURL+"/pairing", nil)
+	if err != nil {
+		return err
+	}
+
+	resp, err := b.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("unexpected status: %d", resp.StatusCode)
+	}
+
+	return nil
+}
+
 // IsRunning returns true if the bridge is running
 func (b *Bridge) IsRunning() bool {
 	if b.process == nil {

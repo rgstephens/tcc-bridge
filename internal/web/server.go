@@ -54,6 +54,7 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/config/credentials", s.handleSaveCredentials).Methods("POST")
 	api.HandleFunc("/config/credentials/test", s.handleTestCredentials).Methods("POST")
 	api.HandleFunc("/pairing", s.handleGetPairing).Methods("GET")
+	api.HandleFunc("/pairing", s.handleDecommission).Methods("DELETE")
 	api.HandleFunc("/logs", s.handleGetLogs).Methods("GET")
 	api.HandleFunc("/version", s.handleVersion).Methods("GET")
 	api.HandleFunc("/ws", s.handleWebSocket)

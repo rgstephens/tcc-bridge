@@ -30,6 +30,11 @@ class MatterBridge {
       console.log(`Command received: ${action} = ${value}`);
       this.bridgeServer.broadcastCommand(action, value);
     });
+
+    // Set up decommission handler
+    this.bridgeServer.setDecommissionHandler(async () => {
+      await this.decommission();
+    });
   }
 
   async start(): Promise<void> {
@@ -110,6 +115,25 @@ class MatterBridge {
     await this.thermostat.setupCommandHandlers();
 
     console.log("Matter Bridge ready!");
+  }
+
+  async decommission(): Promise<void> {
+    console.log("Decommissioning Matter device...");
+
+    if (!this.server) {
+      throw new Error("Server not initialized");
+    }
+
+    // Erase the Matter server (factory reset)
+    await this.server.erase();
+
+    // Clear storage
+    this.storage.clear();
+
+    // Update bridge server status
+    this.bridgeServer.setCommissioned(false);
+
+    console.log("Matter device decommissioned successfully");
   }
 
   async stop(): Promise<void> {

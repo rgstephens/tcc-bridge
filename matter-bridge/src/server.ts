@@ -26,6 +26,7 @@ export interface MatterEvent {
 }
 
 export type StateUpdateHandler = (state: ThermostatState) => Promise<void>;
+export type DecommissionHandler = () => Promise<void>;
 
 export class BridgeServer {
   private app: Express;
@@ -35,6 +36,7 @@ export class BridgeServer {
   private port: number;
   private startTime: Date;
   private stateHandler?: StateUpdateHandler;
+  private decommissionHandler?: DecommissionHandler;
 
   // Status fields
   private commissioned = false;
@@ -100,6 +102,19 @@ export class BridgeServer {
         res.status(500).json({ error: "Failed to update state" });
       }
     });
+
+    // Decommission device (factory reset)
+    this.app.delete("/pairing", async (_req: Request, res: Response) => {
+      try {
+        if (this.decommissionHandler) {
+          await this.decommissionHandler();
+        }
+        res.json({ status: "ok" });
+      } catch (error) {
+        console.error("Failed to decommission:", error);
+        res.status(500).json({ error: "Failed to decommission device" });
+      }
+    });
   }
 
   private setupWebSocket(): void {
@@ -121,6 +136,10 @@ export class BridgeServer {
 
   setStateHandler(handler: StateUpdateHandler): void {
     this.stateHandler = handler;
+  }
+
+  setDecommissionHandler(handler: DecommissionHandler): void {
+    this.decommissionHandler = handler;
   }
 
   setPairingInfo(qrCode: string, manualPairCode: string): void {

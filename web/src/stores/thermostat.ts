@@ -108,6 +108,22 @@ export const useThermostatStore = defineStore('thermostat', () => {
     }
   }
 
+  async function decommission() {
+    try {
+      loading.value = true
+      await api.decommission()
+      await Promise.all([
+        fetchStatus(),
+        fetchPairing(),
+      ])
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Failed to decommission device'
+      throw e
+    } finally {
+      loading.value = false
+    }
+  }
+
   async function fetchLogs(params?: { limit?: number; offset?: number; source?: string }) {
     try {
       loading.value = true
@@ -142,6 +158,11 @@ export const useThermostatStore = defineStore('thermostat', () => {
     wsClient.on('status_update', (data) => {
       const message = data as { type: string; data: SystemStatus }
       status.value = message.data
+    })
+
+    wsClient.on('matter_decommissioned', () => {
+      fetchStatus()
+      fetchPairing()
     })
 
     wsClient.connect()
@@ -182,6 +203,7 @@ export const useThermostatStore = defineStore('thermostat', () => {
     saveCredentials,
     testCredentials,
     fetchPairing,
+    decommission,
     fetchLogs,
     connectWebSocket,
     disconnectWebSocket,

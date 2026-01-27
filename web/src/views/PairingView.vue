@@ -5,7 +5,30 @@ import QRCodeVue from 'qrcode.vue'
 
 const store = useThermostatStore()
 const loading = ref(true)
+const decommissioning = ref(false)
+const showConfirmDialog = ref(false)
 let pollInterval: number | undefined
+
+async function handleDecommission() {
+  if (!showConfirmDialog.value) {
+    showConfirmDialog.value = true
+    return
+  }
+
+  try {
+    decommissioning.value = true
+    await store.decommission()
+    showConfirmDialog.value = false
+  } catch (e) {
+    alert(e instanceof Error ? e.message : 'Failed to decommission device')
+  } finally {
+    decommissioning.value = false
+  }
+}
+
+function cancelDecommission() {
+  showConfirmDialog.value = false
+}
 
 onMounted(async () => {
   loading.value = true
@@ -51,6 +74,43 @@ onUnmounted(() => {
       <p class="mt-2">
         Your thermostat should now appear in the Apple Home app.
       </p>
+
+      <div class="mt-4">
+        <button
+          v-if="!showConfirmDialog"
+          class="button is-danger is-light"
+          @click="handleDecommission"
+        >
+          Reset Matter Device
+        </button>
+
+        <div v-if="showConfirmDialog" class="box has-background-warning-light mt-3">
+          <p class="has-text-weight-semibold mb-3">
+            Are you sure you want to reset this device?
+          </p>
+          <p class="is-size-7 mb-4">
+            This will remove the device from HomeKit. You'll need to remove it from
+            the Home app and re-pair it using the new QR code.
+          </p>
+          <div class="buttons">
+            <button
+              class="button is-danger"
+              :class="{ 'is-loading': decommissioning }"
+              :disabled="decommissioning"
+              @click="handleDecommission"
+            >
+              Yes, Reset Device
+            </button>
+            <button
+              class="button"
+              :disabled="decommissioning"
+              @click="cancelDecommission"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div v-else-if="!store.isMatterRunning" class="notification is-warning">
@@ -129,3 +189,29 @@ onUnmounted(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.pairing-view {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.qr-code-container {
+  display: flex;
+  justify-content: center;
+  padding: 2rem;
+  background: white;
+  border-radius: 8px;
+}
+
+.pairing-code {
+  font-size: 2rem;
+  font-weight: 600;
+  text-align: center;
+  font-family: monospace;
+  letter-spacing: 0.2em;
+  padding: 1rem;
+  background: white;
+  border-radius: 4px;
+}
+</style>

@@ -118,6 +118,10 @@ class ApiClient {
     return this.request<PairingInfo>('/pairing')
   }
 
+  async decommission(): Promise<void> {
+    await this.request('/pairing', { method: 'DELETE' })
+  }
+
   async getLogs(params?: { limit?: number; offset?: number; source?: string }): Promise<EventLog[]> {
     const searchParams = new URLSearchParams()
     if (params?.limit) searchParams.set('limit', params.limit.toString())

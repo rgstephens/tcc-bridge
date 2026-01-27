@@ -468,6 +468,37 @@ func (s *Server) handleGetPairing(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, response)
 }
 
+// handleDecommission decommissions the Matter device
+func (s *Server) handleDecommission(w http.ResponseWriter, r *http.Request) {
+	matterBridge := s.service.GetMatterBridge()
+	db := s.service.GetDB()
+
+	if !matterBridge.IsRunning() {
+		writeError(w, http.StatusServiceUnavailable, "Matter bridge is not running")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+
+	if err := matterBridge.Decommission(ctx); err != nil {
+		log.Error("Failed to decommission device: %v", err)
+		writeError(w, http.StatusInternalServerError, "Failed to decommission device")
+		return
+	}
+
+	// Log the event
+	db.LogEvent(storage.EventSourceUser, storage.EventTypeConnection,
+		"Matter device decommissioned - ready for re-pairing", nil)
+
+	// Broadcast WebSocket event
+	s.hub.Broadcast(map[string]interface{}{
+		"type": "matter_decommissioned",
+	})
+
+	writeJSON(w, map[string]string{"status": "ok"})
+}
+
 // handleGetLogs returns event logs
 func (s *Server) handleGetLogs(w http.ResponseWriter, r *http.Request) {
 	db := s.service.GetDB()
