@@ -98,6 +98,15 @@ class MatterBridge {
     // Start the Matter server
     await this.server.start();
 
+    // Check if already commissioned (from previous session)
+    // Matter.js persists fabric state, so on restart we need to sync our status
+    const isCommissioned = this.server.state.commissioning.commissioned;
+    if (isCommissioned) {
+      console.log("Device already commissioned (restored from previous session)");
+      this.storage.setCommissioned(true);
+      this.bridgeServer.setCommissioned(true);
+    }
+
     // Get and broadcast pairing information
     const qrCode = this.server.state.commissioning.pairingCodes.qrPairingCode;
     const manualPairCode = this.server.state.commissioning.pairingCodes.manualPairingCode;

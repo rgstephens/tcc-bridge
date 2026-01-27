@@ -113,18 +113,24 @@ export class ThermostatEndpoint {
     // Watch for attribute changes from HomeKit
     this.endpoint.events.thermostat.occupiedHeatingSetpoint$Changed.on(async (value: number) => {
       if (this.commandHandler && !this.isUpdating) {
+        // Update our cached state so we don't try to re-set this value
+        this.currentState.heatSetpoint = matterToCelsius(value);
         await this.commandHandler("setHeatingSetpoint", matterToCelsius(value));
       }
     });
 
     this.endpoint.events.thermostat.occupiedCoolingSetpoint$Changed.on(async (value: number) => {
       if (this.commandHandler && !this.isUpdating) {
+        // Update our cached state so we don't try to re-set this value
+        this.currentState.coolSetpoint = matterToCelsius(value);
         await this.commandHandler("setCoolingSetpoint", matterToCelsius(value));
       }
     });
 
     this.endpoint.events.thermostat.systemMode$Changed.on(async (value: Thermostat.SystemMode) => {
       if (this.commandHandler && !this.isUpdating) {
+        // Update our cached state so we don't try to re-set this value
+        this.currentState.systemMode = matterToSystemMode(value);
         await this.commandHandler("setSystemMode", matterToSystemMode(value));
       }
     });
