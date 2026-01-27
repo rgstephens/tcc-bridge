@@ -417,6 +417,19 @@ func (s *Service) pollTCC(ctx context.Context) {
 	}
 
 	for _, device := range devices {
+		// Log received TCC data
+		s.db.LogEvent(storage.EventSourceTCC, storage.EventTypeStateUpdate,
+			fmt.Sprintf("Received: temp=%.1f°F, heat=%.1f°F, cool=%.1f°F, mode=%s",
+				device.CurrentTemp, device.HeatSetpoint, device.CoolSetpoint, device.SystemMode),
+			map[string]interface{}{
+				"device_id":     device.DeviceID,
+				"current_temp":  device.CurrentTemp,
+				"heat_setpoint": device.HeatSetpoint,
+				"cool_setpoint": device.CoolSetpoint,
+				"system_mode":   device.SystemMode,
+				"humidity":      device.Humidity,
+			})
+
 		// Update database
 		state := &storage.ThermostatState{
 			DeviceID:     device.DeviceID,
@@ -436,6 +449,17 @@ func (s *Service) pollTCC(ctx context.Context) {
 		// Push to Matter bridge
 		if err := s.matterBridge.UpdateState(ctx, device); err != nil {
 			log.Debug("Failed to update Matter state: %v", err)
+		} else {
+			s.db.LogEvent(storage.EventSourceMatter, storage.EventTypeStateUpdate,
+				fmt.Sprintf("Sent to HomeKit: temp=%.1f°F, heat=%.1f°F, cool=%.1f°F, mode=%s",
+					device.CurrentTemp, device.HeatSetpoint, device.CoolSetpoint, device.SystemMode),
+				map[string]interface{}{
+					"device_id":     device.DeviceID,
+					"current_temp":  device.CurrentTemp,
+					"heat_setpoint": device.HeatSetpoint,
+					"cool_setpoint": device.CoolSetpoint,
+					"system_mode":   device.SystemMode,
+				})
 		}
 	}
 
