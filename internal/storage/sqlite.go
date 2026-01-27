@@ -244,9 +244,13 @@ func (db *DB) GetEventLogs(filter EventLogFilter) ([]EventLog, error) {
 	var logs []EventLog
 	for rows.Next() {
 		var log EventLog
-		err := rows.Scan(&log.ID, &log.Timestamp, &log.Source, &log.EventType, &log.Message, &log.Details)
+		var details sql.NullString
+		err := rows.Scan(&log.ID, &log.Timestamp, &log.Source, &log.EventType, &log.Message, &details)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan event log: %w", err)
+		}
+		if details.Valid && details.String != "" {
+			log.Details = json.RawMessage(details.String)
 		}
 		logs = append(logs, log)
 	}
