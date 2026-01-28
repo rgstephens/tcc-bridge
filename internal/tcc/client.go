@@ -211,10 +211,13 @@ func (c *Client) GetDevices(ctx context.Context) ([]ThermostatState, error) {
 
 	// Check poll interval
 	c.pollMu.Lock()
-	if time.Since(c.lastPoll) < MinPollInterval && len(c.devices) > 0 {
+	timeSinceLast := time.Since(c.lastPoll)
+	if timeSinceLast < MinPollInterval && len(c.devices) > 0 {
 		c.pollMu.Unlock()
 		c.devicesMu.RLock()
 		defer c.devicesMu.RUnlock()
+		log.Debug("Returning cached device data (last poll %.1f minutes ago, min interval %d minutes)",
+			timeSinceLast.Minutes(), int(MinPollInterval.Minutes()))
 		return c.devices, nil
 	}
 	c.pollMu.Unlock()
@@ -369,13 +372,18 @@ func (c *Client) GetDeviceData(ctx context.Context, deviceID int) (*ThermostatSt
 	path := fmt.Sprintf(DeviceDataPath, deviceID)
 	log.Debug("Fetching device data for device %d from %s", deviceID, path)
 
-	req, err := http.NewRequestWithContext(ctx, "GET", c.baseURL+path, nil)
+	// Add timestamp to prevent caching
+	fullURL := fmt.Sprintf("%s%s?_=%d", c.baseURL, path, time.Now().UnixMilli())
+
+	req, err := http.NewRequestWithContext(ctx, "GET", fullURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create device data request: %w", err)
 	}
 	c.setHeaders(req)
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("X-Requested-With", "XMLHttpRequest")
+	req.Header.Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	req.Header.Set("Pragma", "no-cache")
 
 	resp, err := c.session.GetClient().Do(req)
 	if err != nil {
@@ -417,6 +425,10 @@ func (c *Client) GetDeviceData(ctx context.Context, deviceID int) (*ThermostatSt
 	}
 
 	ui := dataResp.LatestData.UIData
+
+	// Log raw TCC values for debugging cache issues
+	log.Debug("TCC raw values: SystemSwitchPosition=%d, DispTemperature=%.1f, HeatSetpoint=%.1f, CoolSetpoint=%.1f, EquipmentOutputStatus=%d",
+		ui.SystemSwitchPosition, ui.DispTemperature, ui.HeatSetpoint, ui.CoolSetpoint, ui.EquipmentOutputStatus)
 
 	// Cap humidity at 100% (TCC sometimes returns invalid values)
 	humidity := int(ui.IndoorHumidity)
