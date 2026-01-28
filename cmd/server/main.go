@@ -417,18 +417,16 @@ func (s *Service) pollTCC(ctx context.Context) {
 	}
 
 	for _, device := range devices {
-		// Log received TCC data
-		s.db.LogEvent(storage.EventSourceTCC, storage.EventTypeStateUpdate,
-			fmt.Sprintf("Received: temp=%.1f°F, heat=%.1f°F, cool=%.1f°F, mode=%s",
-				device.CurrentTemp, device.HeatSetpoint, device.CoolSetpoint, device.SystemMode),
-			map[string]interface{}{
-				"device_id":     device.DeviceID,
-				"current_temp":  device.CurrentTemp,
-				"heat_setpoint": device.HeatSetpoint,
-				"cool_setpoint": device.CoolSetpoint,
-				"system_mode":   device.SystemMode,
-				"humidity":      device.Humidity,
-			})
+		// Get previous state to detect changes
+		prevState, _ := s.db.GetThermostatStateByDeviceID(device.DeviceID)
+
+		// Check if any values changed
+		hasChanges := prevState == nil ||
+			prevState.CurrentTemp != device.CurrentTemp ||
+			prevState.HeatSetpoint != device.HeatSetpoint ||
+			prevState.CoolSetpoint != device.CoolSetpoint ||
+			string(prevState.SystemMode) != device.SystemMode ||
+			prevState.Humidity != device.Humidity
 
 		// Update database
 		state := &storage.ThermostatState{
@@ -446,12 +444,11 @@ func (s *Service) pollTCC(ctx context.Context) {
 			log.Error("Failed to save thermostat state: %v", err)
 		}
 
-		// Push to Matter bridge
-		if err := s.matterBridge.UpdateState(ctx, device); err != nil {
-			log.Debug("Failed to update Matter state: %v", err)
-		} else {
-			s.db.LogEvent(storage.EventSourceMatter, storage.EventTypeStateUpdate,
-				fmt.Sprintf("Sent to HomeKit: temp=%.1f°F, heat=%.1f°F, cool=%.1f°F, mode=%s",
+		// Only log and push to Matter if values changed
+		if hasChanges {
+			// Log state change from TCC
+			s.db.LogEvent(storage.EventSourceTCC, storage.EventTypeStateChange,
+				fmt.Sprintf("State changed: temp=%.1f°F, heat=%.1f°F, cool=%.1f°F, mode=%s",
 					device.CurrentTemp, device.HeatSetpoint, device.CoolSetpoint, device.SystemMode),
 				map[string]interface{}{
 					"device_id":     device.DeviceID,
@@ -459,7 +456,24 @@ func (s *Service) pollTCC(ctx context.Context) {
 					"heat_setpoint": device.HeatSetpoint,
 					"cool_setpoint": device.CoolSetpoint,
 					"system_mode":   device.SystemMode,
+					"humidity":      device.Humidity,
 				})
+
+			// Push to Matter bridge
+			if err := s.matterBridge.UpdateState(ctx, device); err != nil {
+				log.Debug("Failed to update Matter state: %v", err)
+			} else {
+				s.db.LogEvent(storage.EventSourceMatter, storage.EventTypeStateChange,
+					fmt.Sprintf("Sent to HomeKit: temp=%.1f°F, heat=%.1f°F, cool=%.1f°F, mode=%s",
+						device.CurrentTemp, device.HeatSetpoint, device.CoolSetpoint, device.SystemMode),
+					map[string]interface{}{
+						"device_id":     device.DeviceID,
+						"current_temp":  device.CurrentTemp,
+						"heat_setpoint": device.HeatSetpoint,
+						"cool_setpoint": device.CoolSetpoint,
+						"system_mode":   device.SystemMode,
+					})
+			}
 		}
 	}
 

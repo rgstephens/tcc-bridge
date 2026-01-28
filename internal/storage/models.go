@@ -97,7 +97,7 @@ const (
 	EventTypeCommissioning EventType = "commissioning"
 	EventTypeError         EventType = "error"
 	EventTypeInfo          EventType = "info"
-	EventTypeStateUpdate   EventType = "state_update"
+	EventTypeStateChange   EventType = "state_change"
 )
 
 // EventLog represents a log entry
