@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/gregjohnson/mitsubishi/internal/log"
 	"github.com/gregjohnson/mitsubishi/internal/tcc"
 )
 
@@ -133,19 +134,31 @@ func (b *Bridge) GetPairingInfo(ctx context.Context) (*PairingInfo, error) {
 	return &info, nil
 }
 
+// fahrenheitToCelsius converts Fahrenheit to Celsius
+func fahrenheitToCelsius(f float64) float64 {
+	return (f - 32) * 5 / 9
+}
+
 // UpdateState sends updated thermostat state to the Matter bridge
 func (b *Bridge) UpdateState(ctx context.Context, state tcc.ThermostatState) error {
+	// Convert temperatures from Fahrenheit (TCC) to Celsius (Matter)
 	matterState := ThermostatState{
 		DeviceID:     state.DeviceID,
 		Name:         state.Name,
-		CurrentTemp:  state.CurrentTemp,
-		HeatSetpoint: state.HeatSetpoint,
-		CoolSetpoint: state.CoolSetpoint,
+		CurrentTemp:  fahrenheitToCelsius(state.CurrentTemp),
+		HeatSetpoint: fahrenheitToCelsius(state.HeatSetpoint),
+		CoolSetpoint: fahrenheitToCelsius(state.CoolSetpoint),
 		SystemMode:   state.SystemMode,
 		Humidity:     state.Humidity,
 		IsHeating:    state.IsHeating,
 		IsCooling:    state.IsCooling,
 	}
+
+	log.Debug("Sending to Matter bridge: temp=%.1f°F (%.1f°C), heat=%.1f°F (%.1f°C), cool=%.1f°F (%.1f°C), mode=%s",
+		state.CurrentTemp, matterState.CurrentTemp,
+		state.HeatSetpoint, matterState.HeatSetpoint,
+		state.CoolSetpoint, matterState.CoolSetpoint,
+		state.SystemMode)
 
 	jsonData, err := json.Marshal(matterState)
 	if err != nil {
