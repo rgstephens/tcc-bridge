@@ -4,15 +4,15 @@ import "time"
 
 // ThermostatState represents thermostat state to send to Matter bridge
 type ThermostatState struct {
-	DeviceID     int     `json:"device_id"`
+	DeviceID     int     `json:"deviceId"`
 	Name         string  `json:"name"`
-	CurrentTemp  float64 `json:"current_temp"`
-	HeatSetpoint float64 `json:"heat_setpoint"`
-	CoolSetpoint float64 `json:"cool_setpoint"`
-	SystemMode   string  `json:"system_mode"`
+	CurrentTemp  float64 `json:"currentTemp"`
+	HeatSetpoint float64 `json:"heatSetpoint"`
+	CoolSetpoint float64 `json:"coolSetpoint"`
+	SystemMode   string  `json:"systemMode"`
 	Humidity     int     `json:"humidity"`
-	IsHeating    bool    `json:"is_heating"`
-	IsCooling    bool    `json:"is_cooling"`
+	IsHeating    bool    `json:"isHeating"`
+	IsCooling    bool    `json:"isCooling"`
 }
 
 // Command represents a command from HomeKit via Matter
