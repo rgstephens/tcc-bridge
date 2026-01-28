@@ -425,7 +425,7 @@ func (s *Service) pollTCC(ctx context.Context) {
 			prevState.CurrentTemp != device.CurrentTemp ||
 			prevState.HeatSetpoint != device.HeatSetpoint ||
 			prevState.CoolSetpoint != device.CoolSetpoint ||
-			string(prevState.SystemMode) != device.SystemMode ||
+			prevState.SystemMode.String() != device.SystemMode ||
 			prevState.Humidity != device.Humidity
 
 		// Update database
