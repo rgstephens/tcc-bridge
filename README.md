@@ -205,10 +205,49 @@ MIT
 
 ### Latest
 
-Points 139,511 > 0
+- When I clicked Off it took a while to work. There are no messages in the UI Logs page and here's the -debug
 
-- Add a version and build date and show it on the footer of each web page
-- The log should show TCC interactions to get a sense of when we are hitting the 10 min limit
+2026-01-26 17:07:17 [DEBUG] TCC endpoint /portal/Device/GetZoneListData redirected to error/login
+2026-01-26 17:07:17 [DEBUG] Trying to fetch known device ID 2246437
+2026-01-26 17:07:17 [DEBUG] Fetching device data for device 2246437 from /portal/Device/CheckDataSession/2246437
+2026-01-26 17:07:17 [DEBUG] WebSocket client connected (1 total)
+2026-01-26 17:07:17 [DEBUG] Device data response (status 200, url https://mytotalconnectcomfort.com/portal/Device/CheckDataSession/2246437): {"success":true,"deviceLive":true,"communicationLost":false,"latestData":{"uiData":{"DispTemperature":67.0000,"HeatSetpoint":70.0,"CoolSetpoint":73.0,"DisplayUnits":"F","StatusHeat":0,"StatusCool":0,"HoldUntilCapable":true,"ScheduleCapable":true,"VacationHold":0,"DualSetpointStatus":false,"HeatNextPeriod":40,"CoolNextPeriod":40,"HeatLowerSetptLimit":50.0000,"HeatUpperSetptLimit":83.0000,"CoolLowerSetptLimit":67.0000,"CoolUpperSetptLimit":87.0000,"ScheduleHeatSp":70.0000,"ScheduleCoolSp":73.0000,...
+2026-01-26 17:07:17 [DEBUG] Invalid humidity value 128 from TCC, capping at 100%
+2026-01-26 17:07:17 [DEBUG] Successfully fetched device data: temp=67.0°F, heat=70.0, cool=73.0, mode=heat
+2026-01-26 17:07:17 [DEBUG] Successfully fetched device 2246437
+2026-01-26 17:07:17 [DEBUG] [matter-bridge] 2026-01-26 17:07:17.526 DEBUG  Transaction          Transaction set<tcc-matter-bridge.thermostat>#18 locked tcc-matter-bridge.thermostat.thermostat.state
+2026-01-26 17:07:17 [WARN] [matter-bridge] 2026-01-26 17:07:17.526 ERROR  Transaction          State has not settled after 5 pre-commit cycles which likely indicates an infinite loop
+2026-01-26 17:07:17 [DEBUG] [matter-bridge] 2026-01-26 17:07:17.526 DEBUG  Transaction          Transaction set<tcc-matter-bridge.thermostat>#18 rolled back and unlocked 1 resource
+2026-01-26 17:07:17 [WARN] [matter-bridge] Failed to update thermostat state: Rolled back due to pre-commit error
+2026-01-26 17:07:17 [WARN] [matter-bridge]       at errorRollback (file:///Users/greg/Dev/go/mitsubishi/matter-bridge/node_modules/@matter/node/dist/esm/behavior/state/transaction/Tx.js:325:13)
+2026-01-26 17:07:17 [WARN] [matter-bridge]       at nextCycle (file:///Users/greg/Dev/go/mitsubishi/matter-bridge/node_modules/@matter/node/dist/esm/behavior/state/transaction/Tx.js:333:16)
+2026-01-26 17:07:17 [WARN] [matter-bridge]       at nextPreCommit (file:///Users/greg/Dev/go/mitsubishi/matter-bridge/node_modules/@matter/node/dist/esm/behavior/state/transaction/Tx.js:349:28)
+2026-01-26 17:07:17 [WARN] [matter-bridge]       at #executePreCommit (file:///Users/greg/Dev/go/mitsubishi/matter-bridge/node_modules/@matter/node/dist/esm/behavior/state/transaction/Tx.js:376:12)
+2026-01-26 17:07:17 [WARN] [matter-bridge]       at Tx.commit (file:///Users/greg/Dev/go/mitsubishi/matter-bridge/node_modules/@matter/node/dist/esm/behavior/state/transaction/Tx.js:240:42)
+2026-01-26 17:07:17 [WARN] [matter-bridge]       at commitTransaction (file:///Users/greg/Dev/go/mitsubishi/matter-bridge/node_modules/@matter/node/dist/esm/behavior/state/transaction/Tx.js:33:23)
+2026-01-26 17:07:17 [WARN] [matter-bridge]       at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2026-01-26 17:07:17 [WARN] [matter-bridge]       at async Endpoint.set (file:///Users/greg/Dev/go/mitsubishi/matter-bridge/node_modules/@matter/node/dist/esm/endpoint/Endpoint.js:146:5)
+2026-01-26 17:07:17 [WARN] [matter-bridge]       at async ThermostatEndpoint.updateState (file:///Users/greg/Dev/go/mitsubishi/matter-bridge/dist/thermostat.js:106:13)
+2026-01-26 17:07:17 [WARN] [matter-bridge]       at async BridgeServer.stateHandler (file:///Users/greg/Dev/go/mitsubishi/matter-bridge/dist/index.js:21:13)
+2026-01-26 17:07:17 [DEBUG] Polled 1 devices from TCC
+2026-01-26 17:07:31 [DEBUG] [matter-bridge] 2026-01-26 17:07:31.024 DEBUG  MdnsBroadcaster      Announcement Generator: Commission mode mode: 1 qname: E7064C421FF73CA7._matterc._udp.local port: 5540 interface: lo0
+2026-01-26 17:07:31 [DEBUG] [matter-bridge] 2026-01-26 17:07:31.153 DEBUG  MdnsScanner          Adding operational device DEDC14BEB86EC5E5-000000005D15A967._matter._tcp.local in cache (interface en26, ttl=4500) with TXT data: SII: 320 SAI: 300 SAT: 4000 T: 0 DT: undefined PH: undefined ICD: 0 VP: undefined DN: undefined RI: undefined PI: undefined
+2026-01-26 17:07:31 [DEBUG] [matter-bridge] 2026-01-26 17:07:31.185 DEBUG  MdnsScanner          Adding operational device DEDC14BEB86EC5E5-0000000004A565F9._matter._tcp.local in cache (interface en26, ttl=4500) with TXT data: SII: 320 SAI: 300 SAT: 4000 T: 0 DT: undefined PH: undefined ICD: 0 VP: undefined DN: undefined RI: undefined PI: undefined
+2026-01-26 17:07:31 [DEBUG] [matter-bridge] 2026-01-26 17:07:31.186 DEBUG  MdnsScanner          Adding operational device DEDC14BEB86EC5E5-0000000052B854A1._matter._tcp.local in cache (interface en26, ttl=4500) with TXT data: SII: 320 SAI: 300 SAT: 4000 T: 0 DT: undefined PH: undefined ICD: 0 VP: undefined DN: undefined RI: undefined PI: undefined
+2026-01-26 17:07:31 [DEBUG] [matter-bridge] 2026-01-26 17:07:31.212 DEBUG  MdnsScanner          Adding operational device DEDC14BEB86EC5E5-0000000096642E4C._matter._tcp.local in cache (interface en26, ttl=4500) with TXT data: SII: 320 SAI: 300 SAT: 4000 T: 0 DT: undefined PH: undefined ICD: 0 VP: undefined DN: undefined RI: undefined PI: undefined
+2026-01-26 17:07:31 [DEBUG] [matter-bridge] 2026-01-26 17:07:31.212 DEBUG  MdnsScanner          Adding operational device DEDC14BEB86EC5E5-0000000056E5840E._matter._tcp.local in cache (interface en26, ttl=4500) with TXT data: SII: 320 SAI: 300 SAT: 4000 T: 0 DT: undefined PH: undefined ICD: 0 VP: undefined DN: undefined RI: undefined PI: undefined
+2026-01-26 17:07:31 [DEBUG] [matter-bridge] 2026-01-26 17:07:31.213 DEBUG  MdnsScanner          Adding operational device DEDC14BEB86EC5E5-000000002B67AC96._matter._tcp.local in cache (interface en26, ttl=4500) with TXT data: SII: 320 SAI: 300 SAT: 4000 T: 0 DT: undefined PH: undefined ICD: 0 VP: undefined DN: undefined RI: undefined PI: undefined
+2026-01-26 17:07:36 [DEBUG] WebSocket client disconnected (0 total)
+2026-01-26 17:07:37 [DEBUG] WebSocket client connected (1 total)
+2026-01-26 17:08:15 [DEBUG] [matter-bridge] 2026-01-26 17:08:15.550 INFO   UdpMulticastServer   utun3: send EMSGSIZE ff02::fb:5353
+2026-01-26 17:08:17 [DEBUG] [matter-bridge] 2026-01-26 17:08:17.650 DEBUG  MdnsScanner          Adding operational device DEDC14BEB86EC5E5-00000000B415B65E._matter._tcp.local in cache (interface en26, ttl=4500) with TXT data: SII: 320 SAI: 300 SAT: 4000 T: 0 DT: undefined PH: undefined ICD: 0 VP: undefined DN: undefined RI: undefined PI: undefined
 
-- The logs page needs to show key matter interactions, pairing, messages sent/received, info on the apple home
+- The heat setpoint seems to be out of sync. It got set to 70 somehow from 67. Apple Home shows it's 68 when it is 70.
+
+- When the bridge loses network access, Apple Home shows "No Response" for the Thermostat. When network access is restored, will Apple Home eventually see that the bridge service is back?
+- Why does the status page show HomeKit and TCC Connection as "connected" when there is a loss of network connectivity for the system running the service
+
+- When the service has been off line for a while, Apple Home shows "No Response" for the Thermostat. When the service is restarted, Apple Home shows it available again but the Status screen shows HomeKit "Disconnected".  It also shows "Not paired". Why might shutting it down and restarting it cause the service to think HomeKit is now not paired
+
+- The current temperature shows 68 in HomeKit but 64 on the web page and 64 on the thermostat. When the service is started or it gets information from TCC about the thermostat state, does it send the current temperature and other thermostat values via matter to homekit so it has the latest data?
 

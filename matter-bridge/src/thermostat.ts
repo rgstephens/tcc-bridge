@@ -140,6 +140,10 @@ export class ThermostatEndpoint {
     const prevState = this.currentState;
     this.currentState = state;
 
+    const prevTempF = (prevState.currentTemp * 9/5 + 32).toFixed(1);
+    const newTempF = (state.currentTemp * 9/5 + 32).toFixed(1);
+    console.log(`updateState called: prev temp=${prevTempF}°F (${prevState.currentTemp.toFixed(2)}°C), new temp=${newTempF}°F (${state.currentTemp.toFixed(2)}°C)`);
+
     try {
       // Set flag to prevent event handlers from firing during programmatic updates
       this.isUpdating = true;
@@ -153,7 +157,10 @@ export class ThermostatEndpoint {
       const newCoolSetpoint = celsiusToMatter(state.coolSetpoint);
       const newSystemMode = systemModeToMatter(state.systemMode);
 
-      if (celsiusToMatter(prevState.currentTemp) !== newLocalTemp) {
+      const prevLocalTemp = celsiusToMatter(prevState.currentTemp);
+      console.log(`Comparing localTemperature: prev=${prevLocalTemp} (${prevState.currentTemp.toFixed(2)}°C), new=${newLocalTemp} (${state.currentTemp.toFixed(2)}°C), different=${prevLocalTemp !== newLocalTemp}`);
+
+      if (prevLocalTemp !== newLocalTemp) {
         updates.localTemperature = newLocalTemp;
       }
       if (celsiusToMatter(prevState.heatSetpoint) !== newHeatSetpoint) {
@@ -166,19 +173,23 @@ export class ThermostatEndpoint {
         updates.systemMode = newSystemMode;
       }
 
+      console.log(`Changes detected: ${Object.keys(updates).length > 0 ? Object.keys(updates).join(', ') : 'none'}`);
+
       // Only call set() if there are actual changes
       if (Object.keys(updates).length > 0) {
         // Log the update with key thermostat values
         const tempF = (state.currentTemp * 9/5 + 32).toFixed(1);
         const heatF = (state.heatSetpoint * 9/5 + 32).toFixed(1);
         const coolF = (state.coolSetpoint * 9/5 + 32).toFixed(1);
-        console.log(`Publishing to Matter: temp=${tempF}°F, heat=${heatF}°F, cool=${coolF}°F, mode=${state.systemMode} (changes: ${Object.keys(updates).join(', ')})`);
+        console.log(`Publishing to Matter: temp=${tempF}°F, heat=${heatF}°F, cool=${coolF}°F, mode=${state.systemMode}`);
 
         await this.endpoint.set({
           thermostat: updates,
         });
 
         console.log("Matter state update successful");
+      } else {
+        console.log("No changes to publish to Matter");
       }
     } catch (error) {
       console.error("Failed to update thermostat state:", error);

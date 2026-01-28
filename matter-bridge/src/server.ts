@@ -93,6 +93,8 @@ export class BridgeServer {
     this.app.post("/state", async (req: Request, res: Response) => {
       try {
         const state = req.body as ThermostatState;
+        const tempF = (state.currentTemp * 9/5 + 32).toFixed(1);
+        console.log(`Received state update: temp=${tempF}°F (${state.currentTemp.toFixed(1)}°C), mode=${state.systemMode}`);
         if (this.stateHandler) {
           await this.stateHandler(state);
         }
