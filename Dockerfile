@@ -56,10 +56,6 @@ RUN apk add --no-cache \
     ca-certificates \
     tzdata
 
-# Create app user
-RUN addgroup -g 1000 tcc && \
-    adduser -D -u 1000 -G tcc tcc
-
 WORKDIR /app
 
 # Copy Go binary
@@ -75,10 +71,10 @@ COPY --from=matter-builder /build/package.json /app/matter-bridge/
 
 # Create data directories
 RUN mkdir -p /app/data/.tcc-bridge /app/data/.matter && \
-    chown -R tcc:tcc /app
+    chown -R node:node /app
 
 # Switch to app user
-USER tcc
+USER node
 
 # Expose ports
 EXPOSE 8080 5540
