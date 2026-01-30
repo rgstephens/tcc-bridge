@@ -1,23 +1,25 @@
-version: '3.8'
-
 services:
   tcc-bridge:
     build:
       context: .
-      dockerfile: Dockerfile
       args:
         VERSION: ${VERSION:-dev}
-        BUILD_DATE: ${BUILD_DATE:-$(date -u +"%Y-%m-%d")}
+        BUILD_DATE: ${BUILD_DATE:-}
     image: registry.gstephens.org/tcc-bridge:latest
     container_name: tcc-bridge
     restart: unless-stopped
     ports:
-      - "8080:8080"  # Web UI
-      - "5540:5540"  # Matter bridge
+      - "8080:8080"     # Web UI
+      - "5540:5540"     # Matter commissioning
+      - "5540:5540/udp" # Matter UDP
     volumes:
       - tcc-data:/app/data
     environment:
-      - TZ=America/New_York
+      - TZ=${TZ:-America/New_York}
+    # Matter/HomeKit requires mDNS for device discovery.
+    # If HomeKit can't find the device, try uncommenting network_mode
+    # and commenting out the ports and networks sections.
+    # network_mode: host
     networks:
       - tcc-network
     healthcheck:
@@ -29,8 +31,8 @@ services:
 
 volumes:
   tcc-data:
-    driver: local
+    name: tcc-bridge-data
 
 networks:
   tcc-network:
-    driver: bridge
+    name: tcc-bridge-network
