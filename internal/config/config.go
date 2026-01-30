@@ -27,15 +27,24 @@ type Config struct {
 
 // DefaultConfig returns the default configuration
 func DefaultConfig() *Config {
-	homeDir, _ := os.UserHomeDir()
-	dataDir := filepath.Join(homeDir, ".tcc-bridge")
+	// Check for environment variable first, then fall back to home directory
+	dataDir := os.Getenv("TCC_DATA_DIR")
+	if dataDir == "" {
+		homeDir, _ := os.UserHomeDir()
+		dataDir = filepath.Join(homeDir, ".tcc-bridge")
+	}
+
+	matterDir := os.Getenv("MATTER_DATA_DIR")
+	if matterDir == "" {
+		matterDir = "./matter-bridge"
+	}
 
 	return &Config{
 		ServerPort:        8080,
 		DataDir:           dataDir,
 		MatterPort:        5540,
 		MatterBridgeURL:   "http://localhost:5540",
-		MatterBridgeDir:   "./matter-bridge",
+		MatterBridgeDir:   matterDir,
 		TCCBaseURL:        "https://mytotalconnectcomfort.com",
 		TCCPollInterval:   600, // 10 minutes
 		EncryptionKeyPath: filepath.Join(dataDir, "encryption.key"),

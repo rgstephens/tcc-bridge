@@ -1,10 +1,6 @@
 services:
   tcc-bridge:
-    build:
-      context: .
-      args:
-        VERSION: ${VERSION:-dev}
-        BUILD_DATE: ${BUILD_DATE:-}
+    # Remove the 'build' block entirely
     image: registry.gstephens.org/tcc-bridge:latest
     container_name: tcc-bridge
     restart: unless-stopped
@@ -15,11 +11,7 @@ services:
     volumes:
       - tcc-data:/app/data
     environment:
-      - TZ=${TZ:-America/New_York}
-    # Matter/HomeKit requires mDNS for device discovery.
-    # If HomeKit can't find the device, try uncommenting network_mode
-    # and commenting out the ports and networks sections.
-    # network_mode: host
+      - TZ=${TZ:-America/Los_Angeles}
     networks:
       - tcc-network
     healthcheck:

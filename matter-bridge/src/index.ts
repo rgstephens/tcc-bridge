@@ -8,6 +8,7 @@ const VENDOR_ID = VendorId(0xFFF1); // Test vendor ID
 const PRODUCT_ID = 0x8001;
 const DEVICE_NAME = "TCC Thermostat";
 const PORT = parseInt(process.env.MATTER_PORT || "5540", 10);
+const DATA_DIR = process.env.MATTER_DATA_DIR || "./data";
 
 class MatterBridge {
   private server?: ServerNode;
@@ -16,7 +17,7 @@ class MatterBridge {
   private storage: StorageManager;
 
   constructor() {
-    this.storage = new StorageManager("./data");
+    this.storage = new StorageManager(DATA_DIR);
     this.thermostat = new ThermostatEndpoint(DEVICE_NAME);
     this.bridgeServer = new BridgeServer(PORT);
 
