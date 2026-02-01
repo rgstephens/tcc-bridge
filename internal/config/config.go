@@ -34,9 +34,10 @@ func DefaultConfig() *Config {
 		dataDir = filepath.Join(homeDir, ".tcc-bridge")
 	}
 
-	matterDir := os.Getenv("MATTER_DATA_DIR")
-	if matterDir == "" {
-		matterDir = "./matter-bridge"
+	// Matter bridge code directory (where the Node.js app is)
+	matterBridgeDir := os.Getenv("MATTER_BRIDGE_DIR")
+	if matterBridgeDir == "" {
+		matterBridgeDir = "./matter-bridge"
 	}
 
 	return &Config{
@@ -44,7 +45,7 @@ func DefaultConfig() *Config {
 		DataDir:           dataDir,
 		MatterPort:        5540,
 		MatterBridgeURL:   "http://localhost:5540",
-		MatterBridgeDir:   matterDir,
+		MatterBridgeDir:   matterBridgeDir,
 		TCCBaseURL:        "https://mytotalconnectcomfort.com",
 		TCCPollInterval:   600, // 10 minutes
 		EncryptionKeyPath: filepath.Join(dataDir, "encryption.key"),

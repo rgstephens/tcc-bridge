@@ -1,15 +1,15 @@
 services:
   tcc-bridge:
-    # Remove the 'build' block entirely
     image: registry.gstephens.org/tcc-bridge:latest
     container_name: tcc-bridge
     restart: unless-stopped
+    command: ["/app/bin/tcc-bridge", "-debug"]
     ports:
       - "8080:8080"     # Web UI
       - "5540:5540"     # Matter commissioning
       - "5540:5540/udp" # Matter UDP
     volumes:
-      - tcc-data:/app/data
+      - ./data:/app/data
     environment:
       - TZ=${TZ:-America/Los_Angeles}
     networks:
@@ -20,10 +20,6 @@ services:
       timeout: 3s
       start_period: 10s
       retries: 3
-
-volumes:
-  tcc-data:
-    name: tcc-bridge-data
 
 networks:
   tcc-network:

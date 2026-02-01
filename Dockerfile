@@ -82,6 +82,7 @@ EXPOSE 8080 5540
 # Set environment variables
 ENV TCC_DATA_DIR=/app/data/.tcc-bridge
 ENV MATTER_DATA_DIR=/app/data/.matter
+ENV MATTER_BRIDGE_DIR=/app/matter-bridge
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
