@@ -55,58 +55,134 @@ graph TB
     style iPhone fill:#9cf,stroke:#333,stroke-width:2px
 ```
 
-## Software Requirements
+## Quick Start (Docker)
 
-- Node.js 18+
-- Go 1.21+
-- Network access to TCC cloud service
+The easiest way to run tcc-bridge is using the pre-built Docker image:
 
-## Quick Start
-
-### 1. Install Dependencies
+### 1. Install Docker
 
 ```bash
-# Install Node.js and Go (on Raspberry Pi)
-./scripts/install.sh
-
-# Or manually install dependencies
-make install
+# On Raspberry Pi or Linux
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+sudo usermod -aG docker $USER
 ```
 
-### 2. Build
+### 2. Create docker-compose.yml
 
-```bash
-make build
+```yaml
+services:
+  tcc-bridge:
+    image: stephens/tcc-bridge:latest
+    container_name: tcc-bridge
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./data:/app/data
+    environment:
+      - TZ=America/New_York
 ```
 
-### 3. Run
+### 3. Start the Service
 
 ```bash
-# Development mode
-make dev
-
-# Or run directly
-./bin/tcc-bridge
+docker compose up -d
 ```
 
 ### 4. Configure
 
 1. Open `http://localhost:8080` in your browser
-2. Go to Configuration and enter your TCC credentials
-3. Go to Pairing and scan the QR code with your iPhone
+2. Go to **Configuration** and enter your TCC credentials
+3. Go to **Pairing** and scan the QR code with your iPhone
+4. Your thermostat will appear in the Apple Home app
+
+### View Logs
+
+```bash
+docker compose logs -f
+```
+
+## Alternative: Run Docker Directly
+
+If you prefer not to use docker-compose:
+
+```bash
+docker run -d \
+  --name tcc-bridge \
+  --network host \
+  -v ./data:/app/data \
+  -e TZ=America/New_York \
+  --restart unless-stopped \
+  stephens/tcc-bridge:latest
+```
+
+> **Note**: `--network host` is required for Matter/HomeKit mDNS discovery to work properly.
+
+## Building from Source
+
+If you want to build from source instead of using Docker:
+
+### Requirements
+
+- Node.js 18+
+- Go 1.21+
+- Network access to TCC cloud service
+
+### Build Steps
+
+```bash
+# Clone the repository
+git clone https://github.com/stephens/tcc-bridge.git
+cd tcc-bridge
+
+# Install dependencies
+make install
+
+# Build all components
+make build
+
+# Run the service
+./bin/tcc-bridge
+```
+
+For development:
+
+```bash
+# Run in debug mode
+./bin/tcc-bridge -debug
+
+# Or use the Makefile
+make dev
+```
 
 ## Configuration
 
-The service stores data in `~/.tcc-bridge/`:
+The service stores data in different locations depending on how it's run:
 
-- `tcc-bridge.db` - SQLite database
-- `encryption.key` - Encryption key for stored credentials
+**Docker**: `./data/.tcc-bridge/` (in the mounted volume)
+**Local**: `~/.tcc-bridge/` (in your home directory)
+
+Data files:
+- `tcc-bridge.db` - SQLite database (credentials, state, logs)
+- `encryption.key` - Encryption key for stored TCC credentials
 
 ### Environment Variables
 
-- `SERVER_PORT` - HTTP server port (default: 8080)
-- `MATTER_PORT` - Matter protocol port (default: 5540)
-- `TCC_POLL_INTERVAL` - Polling interval in seconds (default: 600)
+- `TCC_DATA_DIR` - Data directory path (default: `~/.tcc-bridge`)
+- `MATTER_DATA_DIR` - Matter storage path (default: `./data/.matter`)
+- `MATTER_BRIDGE_DIR` - Matter bridge code path (default: `./matter-bridge`)
+- `TZ` - Timezone (e.g., `America/New_York`)
+
+## Hardware Requirements
+
+- **Recommended**: Raspberry Pi 4 (2GB+ RAM) or any ARM64/x86_64 Linux system
+- **Network**: Ethernet or WiFi connection
+- **Storage**: 500MB for Docker image + data
+- **Apple Home Hub**: Apple TV, HomePod, or iPad (for remote HomeKit access)
+
+## API Endpoints
+
+All endpoints are accessible at `http://localhost:8080` (or your server's IP):
 
 ## Project Structure
 
@@ -140,46 +216,25 @@ tcc-bridge/
 | `/api/logs` | GET | Event logs |
 | `/api/ws` | WS | WebSocket for live updates |
 
-## Deployment
+## Deployment Options
 
-### Docker (Recommended)
+### Docker Hub (Recommended)
 
-Build and push to your registry:
-
-```bash
-# Build Docker image
-make docker-build
-
-# Push to registry
-make docker-push
-```
-
-Run with Docker Compose:
+Pre-built images are available on Docker Hub:
 
 ```bash
-# Start services
-make docker-up
+# Latest version
+docker pull stephens/tcc-bridge:latest
 
-# View logs
-make docker-logs
-
-# Stop services
-make docker-down
+# Specific version
+docker pull stephens/tcc-bridge:v1.0.0
 ```
 
-Or run directly:
+Use docker-compose.yml (recommended) or run directly as shown in Quick Start section.
 
-```bash
-docker run -d \
-  --name tcc-bridge \
-  -p 8080:8080 \
-  -p 5540:5540 \
-  -v tcc-data:/app/data \
-  --restart unless-stopped \
-  stephens/tcc-bridge:latest
-```
+### Systemd Service (Build from Source)
 
-### Systemd Service
+If you built from source, you can install as a systemd service:
 
 ```bash
 # Install service
@@ -188,28 +243,66 @@ make install-service
 # Start service
 sudo systemctl start tcc-bridge
 
+# Enable auto-start on boot
+sudo systemctl enable tcc-bridge
+
 # View logs
 sudo journalctl -u tcc-bridge -f
+```
+
+### Building Custom Docker Images
+
+To build your own Docker image:
+
+```bash
+# Build Docker image
+make docker-build
+
+# Push to your registry
+make docker-push
 ```
 
 ## Troubleshooting
 
 ### TCC Connection Issues
 
-- Verify credentials at mytotalconnectcomfort.com
+- Verify credentials at [mytotalconnectcomfort.com](https://mytotalconnectcomfort.com)
 - Check network connectivity
 - TCC rate limits requests; wait 10 minutes between polls
+- Check logs for rate limit errors: `docker compose logs | grep "rate limit"`
 
 ### HomeKit Pairing Issues
 
-- Ensure iPhone and Pi are on the same network
-- Reset pairing: delete `matter-bridge/data/` and restart
+- **"Accessory Not Found"**: Ensure `network_mode: host` is set in docker-compose.yml
+- Ensure iPhone/iPad and tcc-bridge are on the same network
+- Install avahi-daemon on Raspberry Pi: `sudo apt-get install avahi-daemon`
+- Reset pairing:
+  ```bash
+  docker compose down
+  rm -rf ./data/.matter/*
+  docker compose up -d
+  ```
 
-### Service Won't Start
+### Docker Issues
+
+- **Container won't start**: Check logs with `docker compose logs`
+- **Permission denied on data directory**:
+  ```bash
+  chmod 777 ./data
+  # or
+  chown -R 1000:1000 ./data
+  ```
+- **Port already in use**: Check if another service is using port 8080 or 5540
+  ```bash
+  sudo lsof -i :8080
+  sudo lsof -i :5540
+  ```
+
+### Service Won't Start (Systemd)
 
 - Check logs: `sudo journalctl -u tcc-bridge -e`
 - Verify Node.js installed: `node --version`
-- Verify permissions on data directory
+- Verify permissions on data directory: `ls -la ~/.tcc-bridge`
 
 ## License
 
