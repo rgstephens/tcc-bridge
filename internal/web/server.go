@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/gregjohnson/mitsubishi/internal/log"
-	"github.com/gregjohnson/mitsubishi/internal/matter"
-	"github.com/gregjohnson/mitsubishi/internal/storage"
-	"github.com/gregjohnson/mitsubishi/internal/tcc"
+	"github.com/stephens/tcc-bridge/internal/log"
+	"github.com/stephens/tcc-bridge/internal/matter"
+	"github.com/stephens/tcc-bridge/internal/storage"
+	"github.com/stephens/tcc-bridge/internal/tcc"
 )
 
 // ServiceInterface defines the interface for the main service

@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gregjohnson/mitsubishi/internal/log"
-	"github.com/gregjohnson/mitsubishi/internal/storage"
+	"github.com/stephens/tcc-bridge/internal/log"
+	"github.com/stephens/tcc-bridge/internal/storage"
 )
 
 // Version information, set via ldflags at build time

@@ -10,12 +10,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gregjohnson/mitsubishi/internal/config"
-	"github.com/gregjohnson/mitsubishi/internal/log"
-	"github.com/gregjohnson/mitsubishi/internal/matter"
-	"github.com/gregjohnson/mitsubishi/internal/storage"
-	"github.com/gregjohnson/mitsubishi/internal/tcc"
-	"github.com/gregjohnson/mitsubishi/internal/web"
+	"github.com/stephens/tcc-bridge/internal/config"
+	"github.com/stephens/tcc-bridge/internal/log"
+	"github.com/stephens/tcc-bridge/internal/matter"
+	"github.com/stephens/tcc-bridge/internal/storage"
+	"github.com/stephens/tcc-bridge/internal/tcc"
+	"github.com/stephens/tcc-bridge/internal/web"
 )
 
 func main() {

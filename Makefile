@@ -3,12 +3,11 @@
 # Version and build info
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 BUILD_DATE ?= $(shell date -u +"%Y-%m-%d")
-LDFLAGS := -X github.com/gregjohnson/mitsubishi/internal/web.Version=$(VERSION) \
-           -X github.com/gregjohnson/mitsubishi/internal/web.BuildDate=$(BUILD_DATE)
+LDFLAGS := -X github.com/stephens/tcc-bridge/internal/web.Version=$(VERSION) \
+           -X github.com/stephens/tcc-bridge/internal/web.BuildDate=$(BUILD_DATE)
 
 # Docker settings
-DOCKER_REGISTRY ?= registry.gstephens.org
-DOCKER_IMAGE ?= $(DOCKER_REGISTRY)/tcc-bridge
+DOCKER_IMAGE ?= stephens/tcc-bridge
 DOCKER_TAG ?= latest
 
 # Default target
@@ -130,9 +129,9 @@ docker-build:
 		-t $(DOCKER_IMAGE):$(VERSION) \
 		.
 
-# Docker push to registry
+# Docker push to Docker Hub
 docker-push: docker-build
-	@echo "Pushing Docker image to $(DOCKER_REGISTRY)..."
+	@echo "Pushing Docker image to Docker Hub..."
 	docker push $(DOCKER_IMAGE):$(DOCKER_TAG)
 	docker push $(DOCKER_IMAGE):$(VERSION)
 

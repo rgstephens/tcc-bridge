@@ -1,6 +1,6 @@
 services:
   tcc-bridge:
-    image: registry.gstephens.org/tcc-bridge:latest
+    image: stephens/tcc-bridge:latest
     container_name: tcc-bridge
     restart: unless-stopped
     command: ["/app/bin/tcc-bridge", "-debug"]

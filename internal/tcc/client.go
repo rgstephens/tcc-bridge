@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gregjohnson/mitsubishi/internal/log"
+	"github.com/stephens/tcc-bridge/internal/log"
 	"golang.org/x/time/rate"
 )
 

@@ -8,7 +8,7 @@ import (
 	"os/exec"
 	"sync"
 
-	"github.com/gregjohnson/mitsubishi/internal/log"
+	"github.com/stephens/tcc-bridge/internal/log"
 )
 
 // Process manages the Node.js Matter bridge subprocess

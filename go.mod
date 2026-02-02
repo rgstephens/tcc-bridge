@@ -1,4 +1,4 @@
-module github.com/gregjohnson/mitsubishi
+module github.com/stephens/tcc-bridge
 
 go 1.21
 
