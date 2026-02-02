@@ -1,7 +1,14 @@
 .PHONY: all build build-go build-frontend build-matter clean dev install test docker-build docker-push docker-run
 
 # Version and build info
-VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+# Convert git describe (v1.0.0-22-ghash) to semantic version (v1.0.22)
+VERSION ?= $(shell \
+	desc=$$(git describe --tags --always --dirty 2>/dev/null || echo "dev"); \
+	if echo "$$desc" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+-[0-9]+-g[a-f0-9]+'; then \
+		echo "$$desc" | sed -E 's/^(v[0-9]+\.[0-9]+)\.([0-9]+)-([0-9]+)-.*/\1.\3/'; \
+	else \
+		echo "$$desc"; \
+	fi)
 BUILD_DATE ?= $(shell date -u +"%Y-%m-%d")
 LDFLAGS := -X github.com/stephens/tcc-bridge/internal/web.Version=$(VERSION) \
            -X github.com/stephens/tcc-bridge/internal/web.BuildDate=$(BUILD_DATE)
