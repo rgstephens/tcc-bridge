@@ -1,39 +1,62 @@
 # TCC-Matter Bridge
 
-A Raspberry Pi service that bridges Honeywell Total Connect Comfort (TCC) thermostats to Apple HomeKit via the Matter protocol.
+A service that bridges Honeywell Total Connect Comfort (TCC) thermostats to Apple HomeKit via the Matter protocol.
+
+This works with Honeywell [Redlink thermostats](https://www.resideo.com/us/en/pro/products/air/thermostats/redlink-thermostats/).
 
 ## Features
 
 - Control your TCC thermostat from Apple Home app
 - Web UI for configuration and monitoring
-- Real-time temperature and status updates
+- Temperature and status updates
 - Automatic reconnection and error handling
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Raspberry Pi                             │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │                    Go Backend (:8080)                     │  │
-│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────┐   │  │
-│  │  │  Web UI     │  │  TCC Client │  │  Matter Bridge  │   │  │
-│  │  │  (Vue/Bulma)│  │  (REST API) │  │  (WS Client)    │   │  │
-│  │  └─────────────┘  └─────────────┘  └─────────────────┘   │  │
-│  └──────────────────────────────────────────────────────────┘  │
-│                             │ HTTP/WebSocket                    │
-│  ┌──────────────────────────┴───────────────────────────────┐  │
-│  │              Node.js Matter.js Service (:5540)            │  │
-│  │  ┌─────────────────────────────────────────────────────┐ │  │
-│  │  │  Thermostat Device (Matter Thermostat Cluster)      │ │  │
-│  │  └─────────────────────────────────────────────────────┘ │  │
-│  └──────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph "Your Home"
+        Thermostat[Honeywell RedLINK<br/>Thermostat]
+        Gateway[RedLINK Internet<br/>Gateway]
+        Thermostat -->|Wireless| Gateway
+    end
+
+    subgraph "Cloud"
+        TCC[Honeywell TCC<br/>Server/Website]
+        Gateway -->|Internet| TCC
+    end
+
+    subgraph "tcc-bridge Service<br/>(Raspberry Pi / Docker)"
+        subgraph "Go Backend :8080"
+            WebUI[Web UI<br/>Vue.js/Bulma]
+            TCCClient[TCC Client<br/>REST API]
+            MatterClient[Matter Bridge<br/>Client]
+        end
+
+        subgraph "Node.js Matter.js :5540"
+            MatterServer[Matter Server<br/>Thermostat Device]
+        end
+
+        TCCClient -->|HTTP| TCC
+        MatterClient <-->|WebSocket| MatterServer
+    end
+
+    subgraph "Apple Ecosystem"
+        iPhone[iPhone/iPad<br/>Home App]
+        HomeHub[Apple TV/HomePod<br/>Home Hub]
+    end
+
+    MatterServer <-->|Matter/mDNS| HomeHub
+    HomeHub <-->|HomeKit| iPhone
+
+    style Thermostat fill:#f9f,stroke:#333,stroke-width:2px
+    style TCC fill:#ff9,stroke:#333,stroke-width:2px
+    style MatterServer fill:#9f9,stroke:#333,stroke-width:2px
+    style iPhone fill:#9cf,stroke:#333,stroke-width:2px
 ```
 
-## Requirements
+## Software Requirements
 
-- Raspberry Pi 4 or newer (ARM64)
 - Node.js 18+
 - Go 1.21+
 - Network access to TCC cloud service
@@ -88,7 +111,7 @@ The service stores data in `~/.tcc-bridge/`:
 ## Project Structure
 
 ```
-mitsubishi/
+tcc-bridge/
 ├── cmd/server/          # Go entry point
 ├── internal/
 │   ├── config/          # Configuration
