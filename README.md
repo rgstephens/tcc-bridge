@@ -11,6 +11,8 @@ This works with Honeywell [Redlink thermostats](https://www.resideo.com/us/en/pr
 - Temperature and status updates
 - Automatic reconnection and error handling
 
+![Status Page](images/status_page.png)
+
 ## Architecture
 
 ```mermaid
@@ -80,7 +82,7 @@ services:
     volumes:
       - ./data:/app/data
     environment:
-      - TZ=America/New_York
+      - TZ=America/Los_Angeles
 ```
 
 ### 3. Start the Service
@@ -297,12 +299,6 @@ make docker-push
   sudo lsof -i :8080
   sudo lsof -i :5540
   ```
-
-### Service Won't Start (Systemd)
-
-- Check logs: `sudo journalctl -u tcc-bridge -e`
-- Verify Node.js installed: `node --version`
-- Verify permissions on data directory: `ls -la ~/.tcc-bridge`
 
 ## License
 
