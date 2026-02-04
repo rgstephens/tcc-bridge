@@ -229,7 +229,7 @@ Pre-built images are available on Docker Hub:
 docker pull stephens/tcc-bridge:latest
 
 # Specific version
-docker pull stephens/tcc-bridge:v1.0.1
+docker pull stephens/tcc-bridge:v1.0.3
 ```
 
 Use docker-compose.yml (recommended) or run directly as shown in Quick Start section.

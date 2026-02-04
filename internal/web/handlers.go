@@ -15,7 +15,7 @@ import (
 
 // Version information, set via ldflags at build time
 var (
-	Version   = "dev"
+	Version   = "v1.0.3"
 	BuildDate = "unknown"
 )
 
