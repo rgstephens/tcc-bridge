@@ -40,6 +40,13 @@ function getEventTypeClass(eventType: string): string {
       return ''
   }
 }
+
+function formatDetails(details?: Record<string, unknown>): string | null {
+  if (!details || Object.keys(details).length === 0) {
+    return null
+  }
+  return JSON.stringify(details)
+}
 </script>
 
 <template>
@@ -64,7 +71,12 @@ function getEventTypeClass(eventType: string): string {
           <td :class="getEventTypeClass(log.event_type)">
             {{ log.event_type }}
           </td>
-          <td>{{ log.message }}</td>
+          <td>
+            <div class="message">{{ log.message }}</div>
+            <div v-if="formatDetails(log.details)" class="details">
+              {{ formatDetails(log.details) }}
+            </div>
+          </td>
         </tr>
       </tbody>
     </table>
@@ -91,5 +103,17 @@ function getEventTypeClass(eventType: string): string {
   text-transform: uppercase;
   font-size: 0.7rem;
   font-weight: 600;
+}
+
+.message {
+  margin-bottom: 0.2rem;
+}
+
+.details {
+  color: #7a7a7a;
+  font-family: monospace;
+  font-size: 0.8rem;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 </style>
