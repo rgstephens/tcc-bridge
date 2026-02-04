@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"math"
 	"os"
 	"os/signal"
 	"strings"
@@ -421,12 +422,15 @@ func (s *Service) pollTCC(ctx context.Context) {
 		prevState, _ := s.db.GetThermostatStateByDeviceID(device.DeviceID)
 
 		// Check if any values changed
+		tempEpsilon := 0.05 // 0.1°F log rounding threshold
+		changed := func(prev, next float64) bool {
+			return math.Abs(prev-next) >= tempEpsilon
+		}
 		hasChanges := prevState == nil ||
-			prevState.CurrentTemp != device.CurrentTemp ||
-			prevState.HeatSetpoint != device.HeatSetpoint ||
-			prevState.CoolSetpoint != device.CoolSetpoint ||
-			prevState.SystemMode.String() != device.SystemMode ||
-			prevState.Humidity != device.Humidity
+			changed(prevState.CurrentTemp, device.CurrentTemp) ||
+			changed(prevState.HeatSetpoint, device.HeatSetpoint) ||
+			changed(prevState.CoolSetpoint, device.CoolSetpoint) ||
+			prevState.SystemMode.String() != device.SystemMode
 
 		// Update database
 		state := &storage.ThermostatState{
