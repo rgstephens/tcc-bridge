@@ -15,7 +15,7 @@ import (
 
 // Version information, set via ldflags at build time
 var (
-	Version   = "v1.0.3"
+	Version   = "v1.0.5"
 	BuildDate = "unknown"
 )
 
@@ -195,6 +195,9 @@ func (s *Server) handleSetSetpoint(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Debug("Web setpoint request applied: device=%d type=%s old=%.2f new=%.2f remote=%s ua=%q",
+		req.DeviceID, req.Type, oldValue, req.Value, r.RemoteAddr, r.UserAgent())
+
 	// Fetch updated state from TCC
 	updatedDevice, err := tccClient.GetDeviceData(ctx, req.DeviceID)
 	if err != nil {
@@ -246,6 +249,9 @@ func (s *Server) handleSetSetpoint(w http.ResponseWriter, r *http.Request) {
 			"type":       req.Type,
 			"old_value":  oldValue,
 			"new_value":  req.Value,
+			"remote":     r.RemoteAddr,
+			"user_agent": r.UserAgent(),
+			"source":     "web",
 		})
 
 	writeJSON(w, map[string]string{"status": "ok"})

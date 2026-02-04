@@ -271,6 +271,7 @@ func (s *Service) handleMatterCommand(ctx context.Context, cmd matter.Command) e
 			return fmt.Errorf("invalid setpoint value type")
 		}
 		fahrenheit := celsius*9/5 + 32
+		log.Debug("HomeKit set heating setpoint request: device=%d celsius=%.3f fahrenheit=%.3f", deviceID, celsius, fahrenheit)
 
 		oldSetpoint := 0.0
 		if oldState != nil {
@@ -314,6 +315,7 @@ func (s *Service) handleMatterCommand(ctx context.Context, cmd matter.Command) e
 				"type":          "heat",
 				"old_setpoint":  oldSetpoint,
 				"new_setpoint":  fahrenheit,
+				"raw_celsius":   celsius,
 			})
 
 		log.Info("HomeKit: Heat setpoint changed from %.1f°F to %.1f°F", oldSetpoint, fahrenheit)
@@ -325,6 +327,7 @@ func (s *Service) handleMatterCommand(ctx context.Context, cmd matter.Command) e
 			return fmt.Errorf("invalid setpoint value type")
 		}
 		fahrenheit := celsius*9/5 + 32
+		log.Debug("HomeKit set cooling setpoint request: device=%d celsius=%.3f fahrenheit=%.3f", deviceID, celsius, fahrenheit)
 
 		oldSetpoint := 0.0
 		if oldState != nil {
@@ -368,6 +371,7 @@ func (s *Service) handleMatterCommand(ctx context.Context, cmd matter.Command) e
 				"type":          "cool",
 				"old_setpoint":  oldSetpoint,
 				"new_setpoint":  fahrenheit,
+				"raw_celsius":   celsius,
 			})
 
 		log.Info("HomeKit: Cool setpoint changed from %.1f°F to %.1f°F", oldSetpoint, fahrenheit)
@@ -426,11 +430,21 @@ func (s *Service) pollTCC(ctx context.Context) {
 		changed := func(prev, next float64) bool {
 			return math.Abs(prev-next) >= tempEpsilon
 		}
+		tempChanged := false
+		heatChanged := false
+		coolChanged := false
+		modeChanged := false
+		if prevState != nil {
+			tempChanged = changed(prevState.CurrentTemp, device.CurrentTemp)
+			heatChanged = changed(prevState.HeatSetpoint, device.HeatSetpoint)
+			coolChanged = changed(prevState.CoolSetpoint, device.CoolSetpoint)
+			modeChanged = prevState.SystemMode.String() != device.SystemMode
+		}
 		hasChanges := prevState == nil ||
-			changed(prevState.CurrentTemp, device.CurrentTemp) ||
-			changed(prevState.HeatSetpoint, device.HeatSetpoint) ||
-			changed(prevState.CoolSetpoint, device.CoolSetpoint) ||
-			prevState.SystemMode.String() != device.SystemMode
+			tempChanged ||
+			heatChanged ||
+			coolChanged ||
+			modeChanged
 
 		// Update database
 		state := &storage.ThermostatState{
@@ -450,6 +464,35 @@ func (s *Service) pollTCC(ctx context.Context) {
 
 		// Only log and push to Matter if values changed
 		if hasChanges {
+			if prevState != nil && heatChanged {
+				log.Debug("TCC poll: heat setpoint changed from %.2f°F to %.2f°F", prevState.HeatSetpoint, device.HeatSetpoint)
+				s.db.LogEvent(storage.EventSourceTCC, storage.EventTypeTempChange,
+					fmt.Sprintf("Heat setpoint changed from %.1f°F to %.1f°F (TCC poll)", prevState.HeatSetpoint, device.HeatSetpoint),
+					map[string]interface{}{
+						"device_id":     device.DeviceID,
+						"type":          "heat",
+						"old_setpoint":  prevState.HeatSetpoint,
+						"new_setpoint":  device.HeatSetpoint,
+						"current_temp":  device.CurrentTemp,
+						"system_mode":   device.SystemMode,
+						"change_source": "tcc_poll",
+					})
+			}
+			if prevState != nil && coolChanged {
+				log.Debug("TCC poll: cool setpoint changed from %.2f°F to %.2f°F", prevState.CoolSetpoint, device.CoolSetpoint)
+				s.db.LogEvent(storage.EventSourceTCC, storage.EventTypeTempChange,
+					fmt.Sprintf("Cool setpoint changed from %.1f°F to %.1f°F (TCC poll)", prevState.CoolSetpoint, device.CoolSetpoint),
+					map[string]interface{}{
+						"device_id":     device.DeviceID,
+						"type":          "cool",
+						"old_setpoint":  prevState.CoolSetpoint,
+						"new_setpoint":  device.CoolSetpoint,
+						"current_temp":  device.CurrentTemp,
+						"system_mode":   device.SystemMode,
+						"change_source": "tcc_poll",
+					})
+			}
+
 			// Log state change from TCC
 			s.db.LogEvent(storage.EventSourceTCC, storage.EventTypeStateChange,
 				fmt.Sprintf("State changed: temp=%.1f°F, heat=%.1f°F, cool=%.1f°F, mode=%s",
