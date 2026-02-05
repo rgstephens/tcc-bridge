@@ -70,7 +70,7 @@ COPY --from=matter-builder /build/node_modules /app/matter-bridge/node_modules
 COPY --from=matter-builder /build/package.json /app/matter-bridge/
 
 # Create data directories
-RUN mkdir -p /app/data/.tcc-bridge /app/data/.matter && \
+RUN mkdir -p /app/data/.tcc-bridge /app/data/.matter /app/data/matterjs && \
     chown -R node:node /app
 
 # Switch to app user
@@ -82,6 +82,7 @@ EXPOSE 8080 5540
 # Set environment variables
 ENV TCC_DATA_DIR=/app/data/.tcc-bridge
 ENV MATTER_DATA_DIR=/app/data/.matter
+ENV MATTER_STORAGE_PATH=/app/data/matterjs
 ENV MATTER_BRIDGE_DIR=/app/matter-bridge
 
 # Health check
