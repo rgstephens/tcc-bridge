@@ -19,8 +19,8 @@ COPY internal/ ./internal/
 ARG VERSION=dev
 ARG BUILD_DATE
 RUN CGO_ENABLED=1 go build \
-    -ldflags "-X github.com/gregjohnson/mitsubishi/internal/web.Version=${VERSION} \
-              -X github.com/gregjohnson/mitsubishi/internal/web.BuildDate=${BUILD_DATE}" \
+    -ldflags "-X github.com/stephens/tcc-bridge/internal/web.Version=${VERSION} \
+              -X github.com/stephens/tcc-bridge/internal/web.BuildDate=${BUILD_DATE}" \
     -o tcc-bridge ./cmd/server
 
 # Stage 2: Build frontend

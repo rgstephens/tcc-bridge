@@ -1,10 +1,36 @@
 <script setup lang="ts">
 import { RouterView, RouterLink } from 'vue-router'
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { api } from './api/client'
 
 const version = ref('')
 const buildDate = ref('')
+const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+function formatBuildDate(value: string): string {
+  if (!value || value === 'unknown') {
+    return ''
+  }
+  const isoMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (isoMatch) {
+    const year = Number(isoMatch[1])
+    const monthIndex = Number(isoMatch[2]) - 1
+    const day = Number(isoMatch[3])
+    if (monthIndex >= 0 && monthIndex < months.length) {
+      return `${day} ${months[monthIndex]} ${year}`
+    }
+  }
+  const parsed = new Date(value)
+  if (!Number.isNaN(parsed.getTime())) {
+    const day = parsed.getUTCDate()
+    const month = months[parsed.getUTCMonth()]
+    const year = parsed.getUTCFullYear()
+    return `${day} ${month} ${year}`
+  }
+  return value
+}
+
+const formattedBuildDate = computed(() => formatBuildDate(buildDate.value))
 
 onMounted(async () => {
   try {
@@ -46,7 +72,7 @@ onMounted(async () => {
       <div class="content has-text-centered">
         <p class="is-size-7 has-text-grey">
           TCC Bridge v{{ version || 'dev' }}
-          <span v-if="buildDate"> &middot; Built {{ buildDate }}</span>
+          <span v-if="formattedBuildDate"> &middot; Built {{ formattedBuildDate }}</span>
         </p>
       </div>
     </footer>
